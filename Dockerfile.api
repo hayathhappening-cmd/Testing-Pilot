@@ -1,6 +1,7 @@
 FROM node:20-bookworm-slim AS deps
 WORKDIR /app
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 RUN apt-get update && apt-get install -y --no-install-recommends \
   ca-certificates \
   libasound2 \
@@ -31,13 +32,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY package*.json ./
 COPY prisma ./prisma
 RUN npm install
-RUN npx playwright install chromium
 
 FROM node:20-bookworm-slim AS builder
 WORKDIR /app
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /ms-playwright /ms-playwright
 COPY . .
 RUN npm run build:api
 
@@ -45,6 +45,7 @@ FROM node:20-bookworm-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 RUN apt-get update && apt-get install -y --no-install-recommends \
   ca-certificates \
   libasound2 \
@@ -75,6 +76,5 @@ COPY --from=builder /app/backend/dist ./backend/dist
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /ms-playwright /ms-playwright
 EXPOSE 4000
 CMD ["npm", "run", "start:api"]
