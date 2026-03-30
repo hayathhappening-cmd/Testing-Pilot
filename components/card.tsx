@@ -10,7 +10,7 @@ export function Card({
   return (
     <div
       className={cn(
-        "rounded-3xl border border-white/10 bg-white/6 p-6 shadow-2xl shadow-slate-950/30 backdrop-blur",
+        "rounded-2xl border border-[var(--surface-border)] bg-[var(--surface-elevated)] p-6 shadow-[var(--shadow-soft)] transition duration-300 ease-out hover:-translate-y-0.5 hover:shadow-[var(--shadow-card-hover)]",
         className,
       )}
     >
@@ -18,4 +18,3 @@ export function Card({
     </div>
   );
 }
-

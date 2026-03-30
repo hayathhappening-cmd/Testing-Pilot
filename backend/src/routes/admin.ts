@@ -1,5 +1,6 @@
 import { ApprovalStatus } from "@prisma/client";
 import { Router } from "express";
+import { getOpenAiApiKeyUsage } from "../lib/openai";
 import { prisma } from "../lib/prisma";
 import { requireAdmin, requireApprovedUser, requireAuth } from "../middleware/auth";
 
@@ -15,6 +16,9 @@ adminRouter.get("/overview", async (_request, response) => {
           include: {
             plan: true,
           },
+        },
+        usageEvents: {
+          orderBy: { createdAt: "desc" },
         },
       },
       orderBy: { createdAt: "desc" },
@@ -36,6 +40,90 @@ adminRouter.get("/overview", async (_request, response) => {
       approvedUsers: users.filter((user) => user.approvalStatus === ApprovalStatus.APPROVED).length,
       totalCreditsUsed: usageEvents.reduce((sum, event) => sum + event.creditsUsed, 0),
     },
+  });
+});
+
+adminRouter.get("/users/:id", async (request, response) => {
+  const user = await prisma.user.findUnique({
+    where: { id: request.params.id },
+    include: {
+      subscription: {
+        include: {
+          plan: true,
+        },
+      },
+      usageEvents: {
+        orderBy: { createdAt: "desc" },
+      },
+    },
+  });
+
+  if (!user) {
+    response.status(404).json({ error: "User not found." });
+    return;
+  }
+
+  const creditsUsed = user.usageEvents.reduce((sum, event) => sum + event.creditsUsed, 0);
+  const actions = user.usageEvents.length;
+  const tokensUsed = creditsUsed * 25 + actions * 10;
+  const planCredits = user.subscription?.plan.creditsPerMonth ?? 250;
+  const tokensLimit = Math.max(planCredits * 40, 10000);
+  const tokensRemaining = Math.max(tokensLimit - tokensUsed, 0);
+
+  response.json({
+    user: {
+      ...user,
+      creditsUsed,
+      actions,
+    },
+  });
+});
+
+adminRouter.get("/openai-usage", async (_request, response) => {
+  try {
+    const usage = await getOpenAiApiKeyUsage();
+
+    if (!usage) {
+      response.json({
+        usage: null,
+        message: "OpenAI admin usage is unavailable. Configure OPENAI_ADMIN_API_KEY and OPENAI_USAGE_API_KEY_ID.",
+      });
+      return;
+    }
+
+    response.json({ usage });
+  } catch (error) {
+    response.status(502).json({
+      error: error instanceof Error ? error.message : "Failed to fetch OpenAI usage.",
+    });
+  }
+});
+
+adminRouter.post("/users/:id/credits", async (request, response) => {
+  const creditsToAdd = Number(request.body?.creditsToAdd);
+
+  if (!Number.isFinite(creditsToAdd) || !Number.isInteger(creditsToAdd) || creditsToAdd <= 0) {
+    response.status(400).json({ error: "creditsToAdd must be a positive integer." });
+    return;
+  }
+
+  const user = await prisma.user.update({
+    where: { id: request.params.id },
+    data: {
+      creditsBalance: {
+        increment: creditsToAdd,
+      },
+    },
+    select: {
+      id: true,
+      name: true,
+      creditsBalance: true,
+    },
+  });
+
+  response.json({
+    message: `${creditsToAdd} credits assigned to ${user.name}.`,
+    user,
   });
 });
 
@@ -71,6 +159,22 @@ adminRouter.post("/users/:id/reject", async (request, response) => {
   response.json({ message: `${user.name} rejected.` });
 });
 
+adminRouter.post("/users/:id/terminate", async (request, response) => {
+  const user = await prisma.user.update({
+    where: { id: request.params.id },
+    data: {
+      approvalStatus: ApprovalStatus.REJECTED,
+      subscription: {
+        update: {
+          status: "rejected",
+        },
+      },
+    },
+  });
+
+  response.json({ message: `${user.name} terminated.` });
+});
+
 adminRouter.post("/plans/:slug", async (request, response) => {
   const { creditsPerMonth, priceMonthly, description, features } = request.body;
 
@@ -86,4 +190,3 @@ adminRouter.post("/plans/:slug", async (request, response) => {
 
   response.json({ plan });
 });
-

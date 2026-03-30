@@ -1,9 +1,49 @@
 @import "tailwindcss";
 
 :root {
-  --background: #07111f;
-  --foreground: #e5eef8;
-  --accent: #8ef9f3;
+  --accent: #14b8a6;
+  --accent-foreground: #ffffff;
+  --accent-gradient: linear-gradient(135deg, #14b8a6 0%, #0f766e 100%);
+  --focus-ring: 0 0 0 4px rgba(20, 184, 166, 0.16);
+  --font-sans: "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono: "Cascadia Code", "Fira Code", Consolas, "Courier New", monospace;
+}
+
+html.dark {
+  --background: #0b1120;
+  --background-end: #0f172a;
+  --sidebar-bg: #0f172a;
+  --foreground: #e5e7eb;
+  --muted-foreground: #9ca3af;
+  --surface-elevated: #111827;
+  --surface-muted: #172033;
+  --surface-border: #1f2937;
+  --input-bg: #0f172a;
+  --toggle-thumb: #2dd4bf;
+  --dropdown-bg: #111827;
+  --shadow-soft: 0 18px 45px rgba(2, 8, 23, 0.22);
+  --shadow-card-hover: 0 22px 52px rgba(2, 8, 23, 0.28);
+  --shadow-button: 0 10px 24px rgba(13, 148, 136, 0.2);
+  --shadow-button-hover: 0 16px 34px rgba(13, 148, 136, 0.28);
+}
+
+html.light {
+  --background: #f1f5f9;
+  --background-end: #e9eff6;
+  --sidebar-bg: #ffffff;
+  --foreground: #111827;
+  --muted-foreground: #64748b;
+  --surface-elevated: #ffffff;
+  --surface-muted: #f8fafc;
+  --surface-border: #e2e8f0;
+  --input-bg: #ffffff;
+  --toggle-thumb: #14b8a6;
+  --dropdown-bg: #ffffff;
+  --shadow-soft: 0 10px 30px rgba(15, 23, 42, 0.08);
+  --shadow-card-hover: 0 16px 36px rgba(15, 23, 42, 0.12);
+  --shadow-button: 0 14px 28px rgba(20, 184, 166, 0.22);
+  --shadow-button-hover: 0 18px 38px rgba(20, 184, 166, 0.28);
+  --focus-ring: 0 0 0 4px rgba(20, 184, 166, 0.14);
 }
 
 * {
@@ -14,15 +54,53 @@ html {
   scroll-behavior: smooth;
 }
 
+@keyframes background-drift {
+  0% {
+    background-position: 0% 0%, 100% 0%, 0% 0%, 0% 0%;
+  }
+  50% {
+    background-position: 2% 1%, 98% 2%, 0% 0%, 0% 0%;
+  }
+  100% {
+    background-position: 0% 0%, 100% 0%, 0% 0%, 0% 0%;
+  }
+}
+
+@keyframes float-card {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes hero-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(22px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 body {
   margin: 0;
   min-height: 100vh;
   background:
-    radial-gradient(circle at top left, rgba(45, 212, 191, 0.25), transparent 30%),
-    radial-gradient(circle at top right, rgba(56, 189, 248, 0.18), transparent 26%),
-    linear-gradient(180deg, var(--background) 0%, #030712 100%);
+    radial-gradient(circle at top left, rgba(20, 184, 166, 0.06), transparent 24%),
+    radial-gradient(circle at top right, rgba(15, 23, 42, 0.025), transparent 22%),
+    linear-gradient(180deg, rgba(255,255,255,0.18), rgba(255,255,255,0)),
+    linear-gradient(180deg, var(--background) 0%, var(--background-end) 100%);
   color: var(--foreground);
-  font-family: var(--font-geist-sans), sans-serif;
+  font-family: var(--font-sans);
+  transition:
+    background 250ms ease,
+    color 250ms ease;
+  animation: background-drift 18s ease-in-out infinite;
 }
 
 a {
@@ -30,7 +108,61 @@ a {
   text-decoration: none;
 }
 
+body,
+body * {
+  transition:
+    background-color 250ms ease,
+    border-color 250ms ease,
+    color 250ms ease,
+    box-shadow 250ms ease;
+}
+
 ::selection {
   background: rgba(142, 249, 243, 0.3);
 }
 
+.hero-enter {
+  opacity: 0;
+  animation: hero-fade-up 700ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.hero-enter-delay-1 {
+  animation-delay: 90ms;
+}
+
+.hero-enter-delay-2 {
+  animation-delay: 180ms;
+}
+
+.hero-visual {
+  animation: hero-fade-up 780ms cubic-bezier(0.22, 1, 0.36, 1) forwards, float-card 8s ease-in-out 900ms infinite;
+  opacity: 0;
+}
+
+.reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition:
+    opacity 500ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 500ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.reveal-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body {
+    animation: none;
+  }
+
+  .hero-enter,
+  .hero-visual,
+  .reveal {
+    animation: none;
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}

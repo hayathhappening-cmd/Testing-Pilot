@@ -2,11 +2,16 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
+  const normalizedProps =
+    props.type !== "file" && "value" in props
+      ? { ...props, value: props.value ?? "" }
+      : props;
+
   return (
     <input
-      {...props}
+      {...normalizedProps}
       className={cn(
-        "w-full rounded-2xl border border-white/12 bg-slate-950/60 px-4 py-3 text-sm text-white outline-none ring-0 placeholder:text-slate-400 focus:border-cyan-300/60",
+        "w-full rounded-xl border border-[var(--surface-border)] bg-[var(--input-bg)] px-4 py-3 text-sm text-[var(--foreground)] outline-none ring-0 placeholder:text-[var(--muted-foreground)] shadow-sm transition duration-200 ease-out hover:border-slate-400/40 focus:border-[var(--accent)] focus:shadow-[var(--focus-ring)]",
         props.className,
       )}
     />
@@ -14,14 +19,19 @@ export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
 }
 
 export function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  const hasExplicitValue = Object.prototype.hasOwnProperty.call(props, "value");
+  const normalizedProps =
+    hasExplicitValue && props.value == null
+      ? { ...props, value: "" }
+      : props;
+
   return (
     <textarea
-      {...props}
+      {...normalizedProps}
       className={cn(
-        "min-h-36 w-full rounded-3xl border border-white/12 bg-slate-950/60 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-400 focus:border-cyan-300/60",
+        "min-h-36 w-full rounded-xl border border-[var(--surface-border)] bg-[var(--input-bg)] px-4 py-3 text-sm text-[var(--foreground)] outline-none placeholder:text-[var(--muted-foreground)] shadow-sm transition duration-200 ease-out hover:border-slate-400/40 focus:border-[var(--accent)] focus:shadow-[var(--focus-ring)]",
         props.className,
       )}
     />
   );
 }
-

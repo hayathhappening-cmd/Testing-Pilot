@@ -8,23 +8,32 @@ export const dashboardRouter = Router();
 dashboardRouter.use(requireAuth, requireApprovedUser);
 
 dashboardRouter.get("/overview", async (request, response) => {
-  const user = await prisma.user.findUnique({
-    where: { id: request.auth!.userId },
-    include: {
-      subscription: {
-        include: {
-          plan: true,
+  const userId = request.auth!.userId;
+  const [user, usageSummary, recentActivity] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        subscription: {
+          include: {
+            plan: true,
+          },
+        },
+        projects: {
+          orderBy: { updatedAt: "desc" },
         },
       },
-      usageEvents: {
-        orderBy: { createdAt: "desc" },
-        take: 10,
-      },
-      projects: {
-        orderBy: { updatedAt: "desc" },
-      },
-    },
-  });
+    }),
+    prisma.usageEvent.aggregate({
+      where: { userId },
+      _sum: { creditsUsed: true },
+      _count: { _all: true },
+    }),
+    prisma.usageEvent.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+    }),
+  ]);
 
   if (!user) {
     response.status(404).json({ error: "User not found." });
@@ -33,10 +42,17 @@ dashboardRouter.get("/overview", async (request, response) => {
 
   response.json({
     user,
-    recentActivity: user.usageEvents,
+    usageSummary: {
+      creditsUsed: usageSummary._sum.creditsUsed ?? 0,
+      actionsCount: usageSummary._count._all ?? 0,
+    },
+    recentActivity,
     projects: user.projects,
     creditCatalog: creditsCatalog,
     modules: [
+      "AI content matcher for live URL vs document, image, and messaging validation",
+      "AI design matcher for live URL vs Figma or design QA with responsive breakpoint review",
+      "Bulk URL monitoring, regression QA, CI/CD alerts, and auto bug ticket generation",
       "AI exploratory testing agent",
       "AI accessibility testing",
       "AI performance test scenario generator",
@@ -45,4 +61,3 @@ dashboardRouter.get("/overview", async (request, response) => {
     ],
   });
 });
-

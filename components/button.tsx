@@ -17,18 +17,17 @@ export function Button({
     <button
       type={type}
       className={cn(
-        "inline-flex items-center justify-center rounded-full px-5 py-3 text-sm font-semibold transition duration-200 disabled:cursor-not-allowed disabled:opacity-50",
+        "inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold transition duration-200 ease-out disabled:cursor-not-allowed disabled:opacity-50 active:translate-y-[1px]",
         variant === "primary" &&
-          "bg-[var(--accent)] text-slate-950 shadow-lg shadow-cyan-950/20 hover:-translate-y-0.5 hover:bg-cyan-300",
+          "bg-[var(--accent-gradient)] text-[var(--accent-foreground)] shadow-[var(--shadow-button)] hover:-translate-y-0.5 hover:scale-[1.01] hover:shadow-[var(--shadow-button-hover)]",
         variant === "secondary" &&
-          "border border-white/15 bg-white/6 text-white hover:bg-white/10",
-        variant === "ghost" && "text-slate-300 hover:bg-white/5 hover:text-white",
+          "border border-[var(--surface-border)] bg-[var(--surface-muted)] text-[var(--foreground)] shadow-sm hover:-translate-y-0.5 hover:bg-[var(--surface-elevated)] hover:shadow-[var(--shadow-soft)]",
+        variant === "ghost" && "text-[var(--muted-foreground)] hover:bg-[var(--surface-muted)] hover:text-[var(--foreground)]",
         variant === "danger" &&
-          "border border-rose-400/30 bg-rose-500/15 text-rose-100 hover:bg-rose-500/25",
+          "border border-rose-400/30 bg-rose-500/12 text-rose-100 shadow-sm hover:-translate-y-0.5 hover:bg-rose-500/20 hover:shadow-[var(--shadow-soft)]",
         className,
       )}
       {...props}
     />
   );
 }
-

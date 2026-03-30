@@ -24,5 +24,9 @@ export async function parseUploadedFile(file?: Express.Multer.File | null) {
     return result.text;
   }
 
+  if (/\.(png|jpg|jpeg|webp|gif)$/i.test(filename)) {
+    return `Image asset uploaded for QA review: ${file.originalname}. Use provided screenshot notes or design context for visual comparison.`;
+  }
+
   return file.buffer.toString("utf-8");
 }
