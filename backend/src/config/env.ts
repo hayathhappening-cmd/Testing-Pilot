@@ -1,7 +1,7 @@
 import "dotenv/config";
 
 export const env = {
-  apiPort: Number(process.env.API_PORT || 4000),
+  apiPort: Number(process.env.PORT || process.env.API_PORT || 4000),
   jwtSecret: process.env.JWT_SECRET || "change-me-super-secret",
   openAiApiKey: process.env.OPENAI_API_KEY || "",
   openAiAdminApiKey: process.env.OPENAI_ADMIN_API_KEY || "",

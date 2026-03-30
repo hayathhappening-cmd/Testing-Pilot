@@ -10,8 +10,6 @@ services:
     autoDeployTrigger: commit
     healthCheckPath: /api/health
     envVars:
-      - key: API_PORT
-        value: "4000"
       - key: OPENAI_MODEL
         value: gpt-4.1-mini
       - key: DATABASE_URL
