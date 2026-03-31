@@ -14,7 +14,14 @@ const app = express();
 
 app.use(
   cors({
-    origin: env.corsOrigin,
+    origin(origin, callback) {
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+
+      callback(null, env.corsOrigins.includes(origin));
+    },
   }),
 );
 app.use(express.json({ limit: "10mb" }));
@@ -74,6 +81,6 @@ app.use(
   },
 );
 
-app.listen(env.apiPort, () => {
-  console.log(`QA Copilot API running on port ${env.apiPort}`);
+app.listen(env.apiPort, env.apiHost, () => {
+  console.log(`QA Copilot API running on http://${env.apiHost}:${env.apiPort}`);
 });
