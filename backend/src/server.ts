@@ -80,6 +80,26 @@ app.use(
     });
   },
 );
+app.get("/test-playwright", async (req, res) => {
+  const { chromium } = require("playwright");
+
+  try {
+    const browser = await chromium.launch({
+      args: ["--no-sandbox"]
+    });
+
+    const page = await browser.newPage();
+    await page.goto("https://example.com");
+
+    const title = await page.title();
+
+    await browser.close();
+
+    res.json({ success: true, title });
+  } catch (err: any) {
+    res.json({ success: false, error: err.message });
+  }
+});
 
 app.listen(env.apiPort, env.apiHost, () => {
   console.log(`QA Copilot API running on http://${env.apiHost}:${env.apiPort}`);
