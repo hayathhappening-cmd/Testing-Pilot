@@ -15,7 +15,7 @@
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:seed": "node prisma/seed.js",
-    "postinstall": "postinstall": "prisma generate && npx playwright install --with-deps"
+    "postinstall": "prisma generate && npx playwright install --with-deps"
   },
   "keywords": [],
   "author": "",
