@@ -9,7 +9,15 @@ import { dashboardRouter } from "./routes/dashboard";
 import { prisma } from "./lib/prisma";
 import { requireAuth } from "./middleware/auth";
 import { projectsRouter } from "./routes/projects";
+import { execSync } from "child_process";
 
+// Install Playwright browser at runtime (IMPORTANT)
+try {
+  console.log("Installing Playwright Chromium...");
+  execSync("npx playwright install chromium", { stdio: "inherit" });
+} catch (e) {
+  console.log("Playwright already installed or skipped");
+}
 const app = express();
 
 app.use(
@@ -85,8 +93,8 @@ app.get("/test-playwright", async (req, res) => {
 
   try {
     const browser = await chromium.launch({
-      args: ["--no-sandbox"]
-    });
+  args: ["--no-sandbox", "--disable-setuid-sandbox"]
+});
 
     const page = await browser.newPage();
     await page.goto("https://example.com");
