@@ -70,11 +70,11 @@ aiRouter.post("/bug-analyzer", async (request, response) => {
   response.json(result);
 });
 
-aiRouter.post("/test-data", async (request, response) => {
+aiRouter.post("/test-data", upload.single("file"), async (request, response) => {
   const user = await getUser(request.auth!.userId);
   const result = await generateTestData({
     user,
-    prompt: String(request.body.prompt || ""),
+    prompt: (await parseUploadedFile(request.file)) || String(request.body.prompt || ""),
     recordCount: Number(request.body.recordCount || 5),
     projectId: request.body.projectId,
   });

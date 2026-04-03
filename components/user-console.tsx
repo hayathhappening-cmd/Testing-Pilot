@@ -1878,6 +1878,7 @@ export function UserConsole() {
   const [automationFramework, setAutomationFramework] = useState("playwright");
   const [bugInput, setBugInput] = useState("");
   const [testDataPrompt, setTestDataPrompt] = useState("");
+  const [testDataFile, setTestDataFile] = useState<File | null>(null);
   const [recordCount, setRecordCount] = useState("5");
   const [reportText, setReportText] = useState("");
   const [reportFile, setReportFile] = useState<File | null>(null);
@@ -2239,9 +2240,11 @@ export function UserConsole() {
     if (section === "test-data") {
       return (
         <Card className="space-y-4">
+          <Input type="file" accept=".xlsx,.xls,.csv,.txt,.json" onChange={(event) => setTestDataFile(event.target.files?.[0] || null)} />
+          {testDataFile ? <p className="text-sm text-[var(--muted-foreground)]">Attached: {testDataFile.name}</p> : null}
           <Input value={recordCount} onChange={(event) => setRecordCount(event.target.value)} placeholder="Number of records" />
           <Textarea value={testDataPrompt} onChange={(event) => setTestDataPrompt(event.target.value)} placeholder="Describe the records and data rules you need." />
-          <Button onClick={() => runAction(() => apiRequest("/ai/test-data", { method: "POST", body: JSON.stringify({ prompt: testDataPrompt, recordCount: Number(recordCount || 5), projectId: selectedProjectId }) }), "Test data generated successfully.")} disabled={loading || !testDataPrompt.trim()}>Generate test data</Button>
+          <Button onClick={() => runAction(() => sendMultipart("/ai/test-data", { prompt: testDataPrompt, recordCount: String(Number(recordCount || 5)), projectId: selectedProjectId }, testDataFile), "Test data generated successfully.")} disabled={loading || (!testDataPrompt.trim() && !testDataFile)}>Generate test data</Button>
         </Card>
       );
     }
@@ -2249,7 +2252,7 @@ export function UserConsole() {
     if (section === "test-report") {
       return (
         <Card className="space-y-4">
-          <Input type="file" accept=".pdf,.docx,.txt" onChange={(event) => setReportFile(event.target.files?.[0] || null)} />
+          <Input type="file" accept=".pdf,.docx,.txt,.csv,.xlsx,.xls" onChange={(event) => setReportFile(event.target.files?.[0] || null)} />
           <Textarea value={reportText} onChange={(event) => setReportText(event.target.value)} placeholder="Paste test execution results and QA notes." />
           <Button onClick={() => runAction(() => sendMultipart("/ai/test-report", { content: reportText, projectId: selectedProjectId }, reportFile), "Test report generated successfully.")} disabled={loading || (!reportText.trim() && !reportFile)}>Generate report</Button>
         </Card>
