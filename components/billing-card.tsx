@@ -12,14 +12,14 @@ type Plan = {
 
 export function BillingCard({ plan }: { plan: Plan }) {
   return (
-    <div className="rounded-3xl border border-white/8 bg-white/5 p-4">
+    <div className="rounded-3xl border border-[var(--surface-border)] bg-[var(--surface-elevated)] p-4 shadow-[var(--shadow-soft)]">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-lg font-semibold text-white">{plan.name}</p>
-          <p className="text-sm text-slate-300">{plan.creditsPerMonth} credits / month</p>
+          <p className="text-lg font-semibold text-[var(--foreground)]">{plan.name}</p>
+          <p className="text-sm text-[var(--muted-foreground)]">{plan.creditsPerMonth} credits / month</p>
         </div>
         <div className="text-right">
-          <p className="text-lg font-semibold text-white">${plan.priceMonthly}/mo</p>
+          <p className="text-lg font-semibold text-[var(--foreground)]">${plan.priceMonthly}/mo</p>
           <Button
             className="mt-3"
             onClick={async () => {
@@ -45,4 +45,3 @@ export function BillingCard({ plan }: { plan: Plan }) {
     </div>
   );
 }
-

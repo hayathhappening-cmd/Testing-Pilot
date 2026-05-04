@@ -11,12 +11,15 @@ import { requireAuth } from "./middleware/auth";
 import { projectsRouter } from "./routes/projects";
 import { execSync } from "child_process";
 
-// Install Playwright browser at runtime (IMPORTANT)
-try {
-  console.log("Installing Playwright Chromium...");
-  execSync("npx playwright install chromium", { stdio: "inherit" });
-} catch (e) {
-  console.log("Playwright already installed or skipped");
+// Avoid blocking local API startup on browser installation. Set
+// PLAYWRIGHT_INSTALL_ON_BOOT=true when runtime installation is required.
+if (process.env.PLAYWRIGHT_INSTALL_ON_BOOT === "true") {
+  try {
+    console.log("Installing Playwright Chromium...");
+    execSync("npx playwright install chromium", { stdio: "inherit" });
+  } catch (e) {
+    console.log("Playwright already installed or skipped");
+  }
 }
 const app = express();
 

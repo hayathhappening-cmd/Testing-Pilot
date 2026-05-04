@@ -11,7 +11,7 @@ export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
     <input
       {...normalizedProps}
       className={cn(
-        "w-full rounded-xl border border-[var(--surface-border)] bg-[var(--input-bg)] px-4 py-3 text-sm text-[var(--foreground)] outline-none ring-0 placeholder:text-[var(--muted-foreground)] shadow-sm transition duration-200 ease-out hover:border-slate-400/40 focus:border-[var(--accent)] focus:shadow-[var(--focus-ring)]",
+        "w-full rounded-xl border border-[var(--surface-border)] bg-[var(--input-bg)] px-4 py-3 text-sm text-[var(--foreground)] outline-none ring-0 placeholder:text-[var(--muted-foreground)] shadow-sm transition duration-200 ease-out hover:border-teal-300 focus:border-[var(--accent)] focus:shadow-[var(--focus-ring)]",
         props.className,
       )}
     />
@@ -29,7 +29,7 @@ export function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement
     <textarea
       {...normalizedProps}
       className={cn(
-        "min-h-36 w-full rounded-xl border border-[var(--surface-border)] bg-[var(--input-bg)] px-4 py-3 text-sm text-[var(--foreground)] outline-none placeholder:text-[var(--muted-foreground)] shadow-sm transition duration-200 ease-out hover:border-slate-400/40 focus:border-[var(--accent)] focus:shadow-[var(--focus-ring)]",
+        "min-h-36 w-full rounded-xl border border-[var(--surface-border)] bg-[var(--input-bg)] px-4 py-3 text-sm text-[var(--foreground)] outline-none placeholder:text-[var(--muted-foreground)] shadow-sm transition duration-200 ease-out hover:border-teal-300 focus:border-[var(--accent)] focus:shadow-[var(--focus-ring)]",
         props.className,
       )}
     />

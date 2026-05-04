@@ -9,7 +9,7 @@ dashboardRouter.use(requireAuth, requireApprovedUser);
 
 dashboardRouter.get("/overview", async (request, response) => {
   const userId = request.auth!.userId;
-  const [user, usageSummary, recentActivity] = await Promise.all([
+  const [user, usageSummary, recentActivity, recentArtifacts] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },
       include: {
@@ -33,6 +33,23 @@ dashboardRouter.get("/overview", async (request, response) => {
       orderBy: { createdAt: "desc" },
       take: 10,
     }),
+    prisma.projectArtifact.findMany({
+      where: {
+        project: {
+          ownerId: userId,
+        },
+      },
+      include: {
+        project: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+    }),
   ]);
 
   if (!user) {
@@ -47,6 +64,7 @@ dashboardRouter.get("/overview", async (request, response) => {
       actionsCount: usageSummary._count._all ?? 0,
     },
     recentActivity,
+    recentArtifacts,
     projects: user.projects,
     creditCatalog: creditsCatalog,
     modules: [

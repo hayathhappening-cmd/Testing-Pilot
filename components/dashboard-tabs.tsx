@@ -120,10 +120,10 @@ export function DashboardTabs() {
                 setResult("");
               }}
               className={cn(
-                "w-full rounded-2xl px-4 py-3 text-left text-sm transition",
+                "w-full rounded-2xl border px-4 py-3 text-left text-sm transition",
                 activeTab === tab.id
-                  ? "bg-cyan-300 text-slate-950"
-                  : "bg-white/5 text-slate-200 hover:bg-white/10",
+                  ? "border-teal-200 bg-teal-50 text-teal-800"
+                  : "border-[var(--surface-border)] bg-white text-[var(--foreground)] hover:bg-[var(--surface-muted)]",
               )}
             >
               {tab.label}
@@ -137,15 +137,15 @@ export function DashboardTabs() {
           <Card>
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h2 className="text-2xl font-semibold text-white">Generate Test Cases</h2>
-                <p className="text-sm text-slate-300">
+                <h2 className="text-2xl font-semibold text-[var(--foreground)]">Generate Test Cases</h2>
+                <p className="text-sm text-[var(--muted-foreground)]">
                   Upload or paste a PRD, BRD, user story, or API documentation.
                 </p>
               </div>
               <select
                 value={artifactType}
                 onChange={(event) => setArtifactType(event.target.value)}
-                className="rounded-full border border-white/12 bg-slate-950/60 px-4 py-2 text-sm text-white"
+                className="rounded-full border border-[var(--surface-border)] bg-white px-4 py-2 text-sm text-[var(--foreground)]"
               >
                 <option>PRD</option>
                 <option>BRD</option>
@@ -199,15 +199,15 @@ export function DashboardTabs() {
           <Card>
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h2 className="text-2xl font-semibold text-white">Automation Script Generator</h2>
-                <p className="text-sm text-slate-300">
+                <h2 className="text-2xl font-semibold text-[var(--foreground)]">Automation Script Generator</h2>
+                <p className="text-sm text-[var(--muted-foreground)]">
                   Convert a manual test case into executable automation.
                 </p>
               </div>
               <select
                 value={framework}
                 onChange={(event) => setFramework(event.target.value)}
-                className="rounded-full border border-white/12 bg-slate-950/60 px-4 py-2 text-sm text-white"
+                className="rounded-full border border-[var(--surface-border)] bg-white px-4 py-2 text-sm text-[var(--foreground)]"
               >
                 <option value="selenium">Selenium</option>
                 <option value="cypress">Cypress</option>
@@ -237,8 +237,8 @@ export function DashboardTabs() {
 
         {activeTab === "bug" ? (
           <Card>
-            <h2 className="text-2xl font-semibold text-white">Bug Analyzer</h2>
-            <p className="mb-4 text-sm text-slate-300">
+            <h2 className="text-2xl font-semibold text-[var(--foreground)]">Bug Analyzer</h2>
+            <p className="mb-4 text-sm text-[var(--muted-foreground)]">
               Paste stack traces, console errors, or logs to get a root-cause summary.
             </p>
             <Textarea
@@ -259,8 +259,8 @@ export function DashboardTabs() {
 
         {activeTab === "data" ? (
           <Card>
-            <h2 className="text-2xl font-semibold text-white">Test Data Generator</h2>
-            <p className="mb-4 text-sm text-slate-300">
+            <h2 className="text-2xl font-semibold text-[var(--foreground)]">Test Data Generator</h2>
+            <p className="mb-4 text-sm text-[var(--muted-foreground)]">
               Describe the domain and constraints for the dummy data you need.
             </p>
             <Textarea
@@ -281,8 +281,8 @@ export function DashboardTabs() {
 
         {activeTab === "report" ? (
           <Card>
-            <h2 className="text-2xl font-semibold text-white">Test Report Generator</h2>
-            <p className="mb-4 text-sm text-slate-300">
+            <h2 className="text-2xl font-semibold text-[var(--foreground)]">Test Report Generator</h2>
+            <p className="mb-4 text-sm text-[var(--muted-foreground)]">
               Upload or paste raw test results to generate a professional QA summary.
             </p>
             <Input
@@ -310,13 +310,13 @@ export function DashboardTabs() {
         <Card className="min-h-72">
           <div className="mb-3 flex items-center justify-between">
             <div>
-              <h3 className="text-xl font-semibold text-white">AI Output</h3>
-              <p className="text-sm text-slate-300">
+              <h3 className="text-xl font-semibold text-[var(--foreground)]">AI Output</h3>
+              <p className="text-sm text-[var(--muted-foreground)]">
                 Results appear here and update based on the selected QA workflow.
               </p>
             </div>
           </div>
-          <pre className="overflow-x-auto whitespace-pre-wrap rounded-3xl bg-slate-950/60 p-5 text-sm leading-7 text-slate-100">
+          <pre className="overflow-x-auto whitespace-pre-wrap rounded-3xl border border-[var(--surface-border)] bg-[var(--surface-muted)] p-5 text-sm leading-7 text-[var(--foreground)]">
             {result || "Your generated output will appear here."}
           </pre>
         </Card>
@@ -324,4 +324,3 @@ export function DashboardTabs() {
     </div>
   );
 }
-

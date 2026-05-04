@@ -4,7 +4,7 @@
   "scripts": {
     "dev": "concurrently \"npm run dev:web\" \"npm run dev:api\"",
     "dev:web": "next dev -H 0.0.0.0 -p 3000",
-    "dev:api": "tsx watch backend/src/server.ts",
+    "dev:api": "npm run build:api && concurrently \"tsc -w -p backend/tsconfig.json\" \"node --watch backend/dist/server.js\"",
     "build": "npm run build:web && npm run build:api",
     "build:web": "next build",
     "build:api": "tsc -p backend/tsconfig.json",
@@ -28,6 +28,7 @@
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
+    "framer-motion": "^12.38.0",
     "jsonwebtoken": "^9.0.3",
     "jspdf": "^4.2.1",
     "lucide-react": "^0.577.0",

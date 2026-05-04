@@ -9,12 +9,18 @@ const creditCosts: Record<string, number> = {
   analyzeBug: 5,
   generateTestData: 4,
   generateTestReport: 6,
+  executeTestCases: 12,
   generateApiTests: 9,
   analyzeReleaseRisk: 7,
   analyzeContentMatch: 12,
   analyzeDesignMatch: 14,
   analyzeBulkUrlQa: 18,
 };
+
+async function loadWebsiteTestExecutor() {
+  const module = await import("../lib/test-execution");
+  return module.executeWebsiteTestCases;
+}
 
 async function spendCredits(user: User, action: keyof typeof creditCosts, projectId?: string) {
   const cost = creditCosts[action];
@@ -118,6 +124,300 @@ function decodeHtmlEntities(text: string) {
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'");
+}
+
+type ExecutionRow = {
+  id: string;
+  title: string;
+  statusRaw: string;
+  status: "passed" | "failed" | "blocked" | "not_executed" | "unknown";
+  actualResult: string;
+  remarks: string;
+};
+
+function parseCsvLine(line: string) {
+  const values: string[] = [];
+  let current = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i += 1) {
+    const char = line[i];
+
+    if (char === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"';
+        i += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+
+    if (char === "," && !inQuotes) {
+      values.push(current.trim());
+      current = "";
+      continue;
+    }
+
+    current += char;
+  }
+
+  values.push(current.trim());
+  return values;
+}
+
+function normalizeColumnName(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+function getStringField(record: Record<string, unknown>, candidates: string[]) {
+  for (const [key, rawValue] of Object.entries(record)) {
+    const normalizedKey = normalizeColumnName(key);
+    if (!candidates.includes(normalizedKey)) continue;
+    if (rawValue === null || rawValue === undefined) continue;
+    const value = String(rawValue).trim();
+    if (value) return value;
+  }
+
+  return "";
+}
+
+function normalizeExecutionStatus(value: string): ExecutionRow["status"] {
+  const normalized = value.toLowerCase().trim();
+
+  if (!normalized) return "unknown";
+  if (
+    normalized.includes("pass") ||
+    normalized === "ok" ||
+    normalized === "success" ||
+    normalized === "completed"
+  ) {
+    return "passed";
+  }
+
+  if (
+    normalized.includes("fail") ||
+    normalized.includes("defect") ||
+    normalized.includes("error") ||
+    normalized.includes("issue")
+  ) {
+    return "failed";
+  }
+
+  if (
+    normalized.includes("block") ||
+    normalized.includes("hold") ||
+    normalized.includes("pending dependency") ||
+    normalized.includes("awaiting")
+  ) {
+    return "blocked";
+  }
+
+  if (
+    normalized.includes("not executed") ||
+    normalized.includes("not run") ||
+    normalized.includes("not started") ||
+    normalized.includes("todo") ||
+    normalized.includes("skip")
+  ) {
+    return "not_executed";
+  }
+
+  return "unknown";
+}
+
+function parseCsvExecutionRows(input: string) {
+  const lines = input
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (lines.length < 2 || !lines[0].includes(",")) {
+    return [] as ExecutionRow[];
+  }
+
+  const headers = parseCsvLine(lines[0]);
+  const normalizedHeaders = headers.map((header) => normalizeColumnName(header));
+  const hasStatusColumn = normalizedHeaders.some((header) =>
+    [
+      "status",
+      "execution status",
+      "result",
+      "execution result",
+      "test result",
+      "outcome",
+    ].includes(header),
+  );
+
+  if (!hasStatusColumn) {
+    return [] as ExecutionRow[];
+  }
+
+  return lines.slice(1).map((line, index) => {
+    const values = parseCsvLine(line);
+    const row = Object.fromEntries(headers.map((header, valueIndex) => [header, values[valueIndex] ?? ""]));
+    const statusRaw = getStringField(row, [
+      "execution status",
+      "status",
+      "result",
+      "execution result",
+      "test result",
+      "outcome",
+    ]);
+
+    return {
+      id:
+        getStringField(row, ["test case id", "id", "tc id", "test id", "case id"]) ||
+        `ROW-${index + 1}`,
+      title:
+        getStringField(row, ["title", "scenario", "test case", "test case title", "module"]) ||
+        `Execution row ${index + 1}`,
+      statusRaw,
+      status: normalizeExecutionStatus(statusRaw),
+      actualResult: getStringField(row, ["actual result", "actual", "observation", "observed result"]),
+      remarks: getStringField(row, ["remarks", "comment", "comments", "notes"]),
+    };
+  });
+}
+
+function parseStructuredExecutionRows(input: string) {
+  try {
+    const parsed = JSON.parse(input) as {
+      rows?: Array<Record<string, unknown>>;
+      workbookSheets?: Array<{ sheetName?: string; rows?: Array<Record<string, unknown>> }>;
+    };
+
+    const rowSets: Array<Record<string, unknown>> = [];
+    if (Array.isArray(parsed.rows)) {
+      rowSets.push(...parsed.rows);
+    }
+    if (Array.isArray(parsed.workbookSheets)) {
+      for (const sheet of parsed.workbookSheets) {
+        if (Array.isArray(sheet.rows)) {
+          rowSets.push(...sheet.rows);
+        }
+      }
+    }
+
+    return rowSets
+      .map((row, index) => {
+        const statusRaw = getStringField(row, [
+          "execution status",
+          "status",
+          "result",
+          "execution result",
+          "test result",
+          "outcome",
+        ]);
+
+        if (!statusRaw) return null;
+
+        return {
+          id:
+            getStringField(row, ["test case id", "id", "tc id", "test id", "case id"]) ||
+            `ROW-${index + 1}`,
+          title:
+            getStringField(row, ["title", "scenario", "test case", "test case title", "module"]) ||
+            `Execution row ${index + 1}`,
+          statusRaw,
+          status: normalizeExecutionStatus(statusRaw),
+          actualResult: getStringField(row, ["actual result", "actual", "observation", "observed result"]),
+          remarks: getStringField(row, ["remarks", "comment", "comments", "notes"]),
+        } satisfies ExecutionRow;
+      })
+      .filter((row): row is ExecutionRow => Boolean(row));
+  } catch {
+    return [] as ExecutionRow[];
+  }
+}
+
+function summarizeExecutionRows(rows: ExecutionRow[], sourceName?: string) {
+  const passed = rows.filter((row) => row.status === "passed");
+  const failed = rows.filter((row) => row.status === "failed");
+  const blocked = rows.filter((row) => row.status === "blocked");
+  const notExecuted = rows.filter((row) => row.status === "not_executed");
+  const unknown = rows.filter((row) => row.status === "unknown");
+  const executedCount = passed.length + failed.length + blocked.length;
+  const passRate = executedCount ? Math.round((passed.length / executedCount) * 100) : 0;
+
+  const criticalIssues = [...failed, ...blocked]
+    .slice(0, 8)
+    .map(
+      (row) =>
+        `${row.id} - ${row.title}: ${row.actualResult || row.remarks || row.statusRaw || "Execution issue recorded."}`,
+    );
+
+  const blockers = blocked.map(
+    (row) => `${row.id} - ${row.title}: ${row.remarks || row.actualResult || "Blocked during execution."}`,
+  );
+
+  const defectSummary = [
+    `Total rows parsed: ${rows.length}`,
+    `Executed: ${executedCount}`,
+    `Passed: ${passed.length}`,
+    `Failed: ${failed.length}`,
+    `Blocked: ${blocked.length}`,
+    `Not executed / skipped: ${notExecuted.length}`,
+    unknown.length ? `Unknown status rows: ${unknown.length}` : "",
+  ].filter(Boolean);
+
+  const recommendation =
+    failed.length || blocked.length
+      ? "Retest the failed and blocked cases after fixes, then regenerate the execution report with the updated run evidence."
+      : "Execution evidence is clean. Preserve this run as release evidence and attach it to sign-off.";
+
+  const goNoGoRecommendation =
+    blocked.length > 0 || failed.length >= 3
+      ? "No-Go"
+      : failed.length > 0
+        ? "Conditional Go"
+        : executedCount > 0
+          ? "Go"
+          : "Needs Evidence";
+
+  const releaseRecommendation =
+    goNoGoRecommendation === "No-Go"
+      ? "Do not release until blocked and failed scenarios are resolved and rerun evidence is attached."
+      : goNoGoRecommendation === "Conditional Go"
+        ? "Release only if the failed scenarios are non-blocking, documented, and explicitly accepted by stakeholders."
+        : goNoGoRecommendation === "Go"
+          ? "Release can proceed based on the supplied execution evidence."
+          : "Provide an execution sheet with pass, fail, blocked, or not-executed statuses before making a release decision.";
+
+  const summary =
+    executedCount > 0
+      ? `Executed ${executedCount} cases from ${sourceName || "the supplied run evidence"}: ${passed.length} passed, ${failed.length} failed, ${blocked.length} blocked, and ${notExecuted.length} remain not executed.`
+      : `The supplied report data did not contain enough executed-case rows to build a reliable execution summary.`;
+
+  return {
+    summary,
+    passRate: `${passRate}% (${passed.length}/${Math.max(executedCount, 1)})`,
+    goNoGoRecommendation,
+    releaseRecommendation,
+    criticalIssues,
+    blockers,
+    defectSummary,
+    evidenceRequired: [
+      sourceName ? `Source execution file: ${sourceName}` : "Source execution notes or file should be attached.",
+      failed.length || blocked.length ? "Attach rerun evidence for every failed or blocked case." : "Keep this executed report as release evidence.",
+    ],
+    stakeholderActions: [
+      recommendation,
+      failed.length ? "Validate fixes for all failed scenarios." : "No failed scenarios require immediate triage.",
+      blocked.length ? "Remove external blockers and rerun blocked cases." : "No blocked cases were detected in the parsed rows.",
+    ],
+    recommendation,
+    testCases: rows.map((row) => `${row.id} - ${row.title}: ${row.statusRaw || row.status}`),
+    executionBreakdown: {
+      totalRows: rows.length,
+      executed: executedCount,
+      passed: passed.length,
+      failed: failed.length,
+      blocked: blocked.length,
+      notExecuted: notExecuted.length,
+      unknown: unknown.length,
+    },
+  };
 }
 
 function normalizeComparisonText(input: string) {
@@ -1304,6 +1604,9 @@ export async function generateTestCases({
     "Return strict JSON with keys summary, goNoGoRecommendation, releaseRecommendation, governanceNotes, moduleCoverageTargets, defectSummary, coverageGaps, testStrategy, entryCriteria, exitCriteria, smokeSuite, regressionSuite, uatSuite, uatSignoffCriteria, businessOwnerScenarios, qaLeadPack, automationPack, businessUatPack, automationCandidates, testCases.",
     "Each of governanceNotes, moduleCoverageTargets, defectSummary, coverageGaps, smokeSuite, regressionSuite, uatSuite, uatSignoffCriteria, businessOwnerScenarios, qaLeadPack, automationPack, businessUatPack, automationCandidates, testStrategy, entryCriteria, and exitCriteria should be an array of concise strings.",
     "Each test case must include: id, requirementId, module, type, priority, severity, owner, environment, automationStatus, dependencies, scenario, objective, preconditions, testData, steps, expectedResult, negativeCoverage, edgeCoverage, automationCandidate, postconditions, releaseImpact, executionNotes, risk, tags.",
+    "Every test case must also be directly usable in a spreadsheet sheet named QA Test Cases with these core columns in this exact order: Test Case ID, Module, Scenario, Preconditions, Test Steps, Expected Result, Priority, Type.",
+    "Map those spreadsheet columns exactly as follows: Test Case ID=id, Module=module, Scenario=scenario, Preconditions=preconditions, Test Steps=steps, Expected Result=expectedResult, Priority=priority, Type=type.",
+    "The values for scenario, preconditions, steps, and expectedResult must be clean, execution-ready, and understandable without reading other fields.",
     "Write cases that are execution-ready, measurable, and risk-based.",
     "Avoid generic wording like correct, proper, accurate, valid, works, or appropriate unless followed by a concrete assertion.",
     "Include critical-path, negative, boundary, authorization, resilience, cross-device, content, and conversion coverage where relevant.",
@@ -1336,6 +1639,8 @@ export async function generateTestCases({
   const basePrompt = [
     "Generate enterprise-grade test cases from the following requirement or source content.",
     "Focus on business risk, measurable assertions, negative paths, and release readiness.",
+    "The primary deliverable should feel like a clean QA worksheet, not a vague summary.",
+    "Make the testCases array spreadsheet-ready for a sheet called QA Test Cases with columns Test Case ID, Module, Scenario, Preconditions, Test Steps, Expected Result, Priority, Type.",
     "Also produce grouped QA pack sections for smoke, regression, UAT, UAT sign-off criteria, business-owner scenarios, QA lead pack, automation pack, business UAT pack, entry criteria, exit criteria, automation candidates, go/no-go recommendation, defect summary, and coverage gaps.",
     `Module coverage targets: ${moduleCoverageTargets.join("; ")}.`,
     `Minimum detailed test case count: ${minimumDetailedCases}.`,
@@ -1458,10 +1763,12 @@ export async function analyzeBug({
   user,
   input,
   projectId,
+  sourceName,
 }: {
   user: User;
   input: string;
   projectId?: string;
+  sourceName?: string;
 }) {
   const fallback = {
     rootCause: "The issue is likely caused by missing null checks or environment-specific configuration drift.",
@@ -1480,6 +1787,7 @@ export async function analyzeBug({
     projectId,
     type: ArtifactType.BUG_ANALYSIS,
     title: "Bug analysis",
+    sourceName,
     inputText: input,
     outputJson: result as Prisma.InputJsonValue,
   });
@@ -1529,29 +1837,71 @@ export async function generateTestReport({
   user,
   input,
   projectId,
+  sourceName,
 }: {
   user: User;
   input: string;
   projectId?: string;
+  sourceName?: string;
 }) {
-  const fallback = {
-    summary: "Core QA execution is healthy with a few repeatable failures requiring follow-up.",
-    passRate: "86%",
-    criticalIssues: ["Validation failure in checkout flow", "Intermittent API timeout during order sync"],
-    releaseRecommendation: "Proceed only after the failed scenarios are retested and blocking issues are closed.",
-  };
+  const parsedRows = [...parseStructuredExecutionRows(input), ...parseCsvExecutionRows(input)];
+  const uniqueRows = Array.from(
+    new Map(parsedRows.map((row) => [`${row.id}::${row.title}::${row.statusRaw}`, row])).values(),
+  );
 
-  const result = await generateAiJson({
-    system: "Return JSON with summary, passRate, criticalIssues, releaseRecommendation.",
-    prompt: `Summarize the following QA results into an executive report:\n\n${input}`,
-    fallback,
-  });
+  const fallback = summarizeExecutionRows(uniqueRows, sourceName);
+
+  const result = uniqueRows.length
+    ? fallback
+    : await generateAiJson({
+        system: [
+          "Return strict JSON with keys summary, passRate, goNoGoRecommendation, criticalIssues, blockers, defectSummary, stakeholderActions, recommendation, releaseRecommendation, evidenceRequired, testCases.",
+          "Do not invent execution evidence that is not present in the user input.",
+          "If the input lacks explicit execution status, say so clearly and recommend providing an execution sheet.",
+          "Prefer concrete counts, failed scenarios, blockers, and next actions over generic QA language.",
+        ].join(" "),
+        prompt: `Create an execution-aware QA report from the following run evidence:\n\n${input}`,
+        fallback,
+      });
 
   const creditsUsed = await spendCredits(user, "generateTestReport", projectId);
   await storeArtifact({
     projectId,
     type: ArtifactType.TEST_REPORT,
     title: "QA execution report",
+    sourceName,
+    inputText: input,
+    outputJson: result as Prisma.InputJsonValue,
+  });
+
+  return { ...result, creditsUsed };
+}
+
+export async function executeTestCases({
+  user,
+  input,
+  baseUrl,
+  projectId,
+  sourceName,
+}: {
+  user: User;
+  input: string;
+  baseUrl: string;
+  projectId?: string;
+  sourceName?: string;
+}) {
+  const executeWebsiteTestCases = await loadWebsiteTestExecutor();
+  const result = await executeWebsiteTestCases({
+    baseUrl,
+    input,
+  });
+
+  const creditsUsed = await spendCredits(user, "executeTestCases", projectId);
+  await storeArtifact({
+    projectId,
+    type: ArtifactType.TEST_REPORT,
+    title: "Executed website test run",
+    sourceName,
     inputText: input,
     outputJson: result as Prisma.InputJsonValue,
   });
@@ -1615,10 +1965,12 @@ export async function analyzeReleaseRisk({
   user,
   input,
   projectId,
+  sourceName,
 }: {
   user: User;
   input: string;
   projectId?: string;
+  sourceName?: string;
 }) {
   const fallback = {
     readinessScore: 72,
@@ -1670,6 +2022,7 @@ export async function analyzeReleaseRisk({
     projectId,
     type: ArtifactType.RELEASE_RISK,
     title: "Release risk analysis",
+    sourceName,
     inputText: input,
     outputJson: result as Prisma.InputJsonValue,
   });

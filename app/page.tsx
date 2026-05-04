@@ -1,376 +1,345 @@
 import Link from "next/link";
-import { ArrowRight, CheckCircle2, ClipboardCheck, Gauge, ShieldCheck, Sparkles } from "lucide-react";
+import {
+  ArrowRight,
+  CheckCircle2,
+  ClipboardCheck,
+  Gauge,
+  ShieldCheck,
+  Sparkles,
+} from "lucide-react";
+import { AuroraHero } from "../components/aurora-hero";
 import { Button } from "../components/button";
 import { Reveal } from "../components/reveal";
 
-const trustIndicators = ["Teams shipping weekly", "QA leaders standardizing workflows", "Secure admin approval controls", "Built for production rollouts"];
+const trustIndicators = [
+  "Trusted by quality-focused SaaS teams",
+  "Structured outputs instead of raw AI text",
+  "Release-ready governance built in",
+  "Designed for teams shipping weekly",
+];
 
 const featureList = [
   {
-    title: "Requirement-to-test generation",
-    text: "Turn requirements into structured coverage in minutes.",
+    title: "Requirement intelligence",
+    text: "Convert specs, tickets, and release notes into structured coverage without losing product context.",
     icon: Sparkles,
   },
   {
     title: "Automation acceleration",
-    text: "Generate Selenium, Playwright, Cypress, and API-ready assets fast.",
+    text: "Move from planning into Playwright, API, and regression-ready outputs with much less friction.",
     icon: ClipboardCheck,
   },
   {
-    title: "Release confidence",
-    text: "Bring defects, risk signals, and outputs into one release view.",
+    title: "Release readiness",
+    text: "Bring blockers, coverage, and quality signals into one operating view that leaders can trust.",
     icon: Gauge,
   },
   {
     title: "Governed collaboration",
-    text: "Keep approvals, workspaces, and teams aligned without sprawl.",
+    text: "Keep approvals, usage controls, and team operations aligned as the workspace scales.",
     icon: ShieldCheck,
   },
 ];
 
-const useCases = [
+const operatingModel = [
   {
-    title: "For QA Engineers",
-    text: "Move from requirements to credible test coverage faster, without losing structure or depth.",
+    id: "01",
+    title: "Ingest the real signal",
+    text: "Requirements, defects, and release changes are brought into one place instead of being scattered across docs and chats.",
   },
   {
-    title: "For QA Leads",
-    text: "Standardize outputs, guide release readiness, and reduce review overhead across the team.",
+    id: "02",
+    title: "Generate structured QA outputs",
+    text: "The system produces reusable assets that stay aligned to product scope, not loose generic text.",
   },
   {
-    title: "For Teams",
-    text: "Give product, engineering, and QA one operating system for quality decisions and artifacts.",
+    id: "03",
+    title: "Review the release with confidence",
+    text: "Leads and stakeholders get a much cleaner picture of readiness before decisions are made.",
   },
 ];
 
 const testimonials = [
   {
-    quote: "QA Copilot gave our team a cleaner path from requirement review to release sign-off.",
+    quote:
+      "The biggest win was not just speed. It was how much cleaner the entire release conversation became across QA and engineering.",
     author: "Riya Malhotra",
     role: "QA Lead, Fintech Platform",
   },
   {
-    quote: "We cut manual planning time and got more consistent outputs across engineers almost immediately.",
+    quote:
+      "QA Copilot gave us better structure, better visibility, and much less operational noise around core quality workflows.",
     author: "Daniel Brooks",
     role: "Head of Quality, B2B SaaS",
   },
 ];
 
 const metrics = [
-  { label: "Faster planning cycles", value: "3x" },
+  { label: "Planning speed", value: "3x" },
   { label: "Core QA workflows", value: "8+" },
-  { label: "Shared team workspace", value: "1" },
+  { label: "Shared release surface", value: "1" },
 ];
 
 const plans = [
   {
     name: "Starter",
     price: "$29",
-    description: "For individual QA engineers building stronger coverage faster.",
-    bullets: ["250 credits", "Test cases and bug analysis", "Essential QA workflows"],
+    description: "For individual QA engineers who want stronger structure and faster coverage creation.",
+    bullets: ["250 credits", "Core QA workflows", "Structured test outputs"],
     highlighted: false,
   },
   {
     name: "Growth",
     price: "$79",
-    description: "For teams who want speed, consistency, and better release confidence.",
+    description: "For teams who want better consistency, clearer operations, and stronger release confidence.",
     bullets: ["1000 credits", "Automation and API coverage", "Team-ready workflow standardization"],
     highlighted: true,
   },
   {
     name: "Scale",
     price: "$199",
-    description: "For organizations running quality operations across projects and teams.",
-    bullets: ["4000 credits", "Admin controls and analytics", "Multi-project QA governance"],
+    description: "For organizations coordinating quality operations across projects, teams, and approvals.",
+    bullets: ["4000 credits", "Admin controls", "Multi-project governance"],
     highlighted: false,
   },
 ];
 
 export default function HomePage() {
   return (
-    <main className="mx-auto max-w-[1100px] space-y-[128px] pb-24 pt-10">
-      <section className="grid items-start gap-14 lg:grid-cols-[1.05fr_0.95fr] lg:pt-14">
-        <div className="relative space-y-8">
-          <div className="pointer-events-none absolute -left-10 top-6 h-44 w-44 rounded-full bg-[var(--accent)]/10 blur-3xl" />
-          <div className="hero-enter inline-flex rounded-full border border-[var(--surface-border)] bg-[var(--surface-muted)] px-4 py-2 text-[11px] font-medium uppercase tracking-[0.28em] text-[var(--muted-foreground)]">
-            AI operating system for modern QA
-          </div>
-          <div className="hero-enter hero-enter-delay-1 relative space-y-5">
-            <h1 className="max-w-3xl text-[3.2rem] font-semibold leading-[0.96] tracking-[-0.055em] text-[var(--foreground)] sm:text-[4.1rem]">
-              Quality work that feels fast, structured, and <span className="text-[var(--accent)]">ready to ship</span>.
-            </h1>
-            <p className="max-w-2xl text-lg leading-8 text-[var(--muted-foreground)]">
-              QA Copilot turns requirements, bugs, and release signals into clear testing outputs so teams can move faster with confidence.
-            </p>
-          </div>
-          <div className="hero-enter hero-enter-delay-2 flex flex-wrap gap-4">
-            <Link href="/register">
-              <div className="rounded-2xl shadow-[0_0_40px_rgba(20,184,166,0.18)]">
-                <Button className="min-w-[210px]">
-                  <Sparkles className="h-4 w-4" />
-                  Start free trial
-                </Button>
-              </div>
-            </Link>
-            <Link href="/login">
-              <Button variant="secondary" className="min-w-[160px]">
-                Login
-              </Button>
-            </Link>
-          </div>
-        </div>
+    <>
+      <AuroraHero />
 
-        <div className="space-y-6 pt-3">
-          <div className="hero-visual relative overflow-hidden rounded-[28px] border border-[var(--surface-border)] bg-[linear-gradient(180deg,var(--surface-elevated),var(--surface-muted))] p-6 shadow-[var(--shadow-soft)] transition duration-300 hover:-translate-y-1 hover:shadow-[var(--shadow-card-hover)]">
-            <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-[var(--accent)]/12 blur-3xl" />
-            <div className="grid gap-4 md:grid-cols-[1.1fr_0.9fr]">
-              <div className="rounded-[22px] border border-[var(--surface-border)] bg-[var(--surface-muted)] p-5">
-                <p className="text-[11px] uppercase tracking-[0.24em] text-[var(--muted-foreground)]">Preview</p>
-                <h3 className="mt-3 text-2xl font-semibold tracking-[-0.03em] text-[var(--foreground)]">Release view</h3>
-                <div className="mt-6 grid grid-cols-2 gap-3">
-                  <div className="rounded-[18px] border border-[var(--surface-border)] bg-[var(--surface-elevated)] px-4 py-4">
-                    <p className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted-foreground)]">Coverage</p>
-                    <p className="mt-2 text-3xl font-semibold text-[var(--foreground)]">92%</p>
+      <main className="mx-auto max-w-[1120px] space-y-28 pb-24 pt-6">
+        <Reveal>
+          <section className="overflow-hidden rounded-[30px] border border-[#dbe4ff] bg-[linear-gradient(180deg,rgba(255,255,255,0.82),rgba(247,250,255,0.94))] px-6 py-5 shadow-[0_20px_70px_rgba(15,23,42,0.07)] backdrop-blur-xl sm:px-8">
+            <div className="flex flex-wrap items-center justify-between gap-x-8 gap-y-4 text-sm font-medium text-slate-500">
+              {trustIndicators.map((item) => (
+                <span key={item}>{item}</span>
+              ))}
+            </div>
+          </section>
+        </Reveal>
+
+        <Reveal delay={80}>
+          <section id="features" className="grid gap-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-start">
+            <div className="space-y-4">
+              <p className="text-[11px] font-medium uppercase tracking-[0.26em] text-slate-500">
+                Platform
+              </p>
+              <h2 className="text-4xl font-semibold tracking-[-0.05em] text-slate-950 sm:text-[3.35rem]">
+                Built like premium infrastructure for QA teams.
+              </h2>
+              <p className="max-w-lg text-base leading-8 text-slate-600">
+                The product is designed to feel precise and operationally calm, with stronger hierarchy, clearer outputs, and less visual noise.
+              </p>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              {featureList.map((feature, index) => (
+                <div
+                  key={feature.title}
+                  className="group rounded-[28px] border border-[#dbe4ff] bg-[linear-gradient(180deg,rgba(255,255,255,0.88),rgba(248,250,255,0.96))] p-6 shadow-[0_18px_50px_rgba(15,23,42,0.06)] transition duration-500 hover:-translate-y-1.5 hover:shadow-[0_28px_70px_rgba(15,23,42,0.10)]"
+                  style={{ transitionDelay: `${index * 40}ms` }}
+                >
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#111827_0%,#312e81_100%)] text-white transition duration-500 group-hover:scale-105">
+                    <feature.icon className="h-5 w-5" />
                   </div>
-                  <div className="rounded-[18px] border border-[var(--surface-border)] bg-[var(--surface-elevated)] px-4 py-4">
-                    <p className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted-foreground)]">Risk</p>
-                    <p className="mt-2 text-3xl font-semibold text-[var(--foreground)]">Low</p>
-                  </div>
+                  <h3 className="mt-6 text-xl font-semibold tracking-[-0.03em] text-slate-950">
+                    {feature.title}
+                  </h3>
+                  <p className="mt-3 text-sm leading-7 text-slate-600">{feature.text}</p>
                 </div>
+              ))}
+            </div>
+          </section>
+        </Reveal>
+
+        <Reveal delay={120}>
+          <section className="overflow-hidden rounded-[34px] border border-[#dbe4ff] bg-[linear-gradient(180deg,rgba(255,255,255,0.82),rgba(244,248,255,0.96))] p-6 shadow-[0_26px_80px_rgba(15,23,42,0.09)] backdrop-blur-xl sm:p-8">
+            <div className="grid gap-8 lg:grid-cols-[0.88fr_1.12fr] lg:items-center">
+              <div className="space-y-4">
+                <p className="text-[11px] font-medium uppercase tracking-[0.26em] text-slate-500">
+                  Operating Model
+                </p>
+                <h2 className="text-4xl font-semibold tracking-[-0.05em] text-slate-950 sm:text-[3rem]">
+                  The release workflow, reorganized around signal instead of noise.
+                </h2>
+                <p className="max-w-lg text-base leading-8 text-slate-600">
+                  QA Copilot gives teams a cleaner path from intake to release review, with the kind of product clarity premium SaaS should provide.
+                </p>
               </div>
-              <div className="space-y-3">
-                {[
-                  ["Structured outputs", "Reusable QA assets, not raw text."],
-                  ["Release readiness", "Signals, actions, and progress in one view."],
-                  ["Team controls", "Approvals and usage governance built in."],
-                ].map(([label, value]) => (
-                  <div key={label} className="rounded-[18px] border border-[var(--surface-border)] bg-[var(--surface-elevated)] px-4 py-4 transition duration-300 hover:scale-[1.01]">
-                    <p className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted-foreground)]">{label}</p>
-                    <p className="mt-2 text-sm leading-6 text-[var(--foreground)]/88">{value}</p>
+
+              <div className="space-y-4">
+                {operatingModel.map((item) => (
+                  <div
+                    key={item.id}
+                    className="rounded-[26px] border border-[#dbe4ff] bg-white px-5 py-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)] transition duration-500 hover:-translate-y-1"
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-950 text-sm font-semibold text-white">
+                        {item.id}
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold text-slate-950">{item.title}</h3>
+                        <p className="mt-2 text-sm leading-7 text-slate-600">{item.text}</p>
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
-          </div>
+          </section>
+        </Reveal>
 
-          <div className="hero-enter hero-enter-delay-2 space-y-4">
-            <p className="text-[11px] font-medium uppercase tracking-[0.24em] text-[var(--muted-foreground)]">
-              What teams rely on
-            </p>
-            {[
-              "Generate structured test cases from real requirement documents",
-              "Accelerate automation and API coverage without losing QA rigor",
-              "Track release readiness with clearer signals and less operational noise",
-            ].map((item, index) => (
-              <div key={item} className="flex items-start gap-3" style={{ animationDelay: `${index * 70}ms` }}>
-                <CheckCircle2 className="mt-1 h-4 w-4 shrink-0 text-[var(--accent)]" />
-                <p className="text-sm leading-7 text-[var(--foreground)]/88">{item}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <Reveal>
-        <section className="rounded-[32px] border border-[var(--surface-border)] bg-[linear-gradient(135deg,rgba(20,184,166,0.1),rgba(15,23,42,0.03))] px-8 py-14 text-center shadow-[0_0_0_1px_rgba(20,184,166,0.06),var(--shadow-soft)]">
-          <p className="mx-auto max-w-4xl text-3xl font-semibold tracking-[-0.04em] text-[var(--foreground)] sm:text-5xl">
-            Better QA does not come from more tools. It comes from a clearer operating system.
-          </p>
-        </section>
-      </Reveal>
-
-      <Reveal>
-        <section className="space-y-6">
-        <p className="text-center text-[11px] font-medium uppercase tracking-[0.26em] text-[var(--muted-foreground)]">
-          Trusted by quality-focused teams building serious products
-        </p>
-        <div className="flex flex-wrap items-center justify-center gap-x-10 gap-y-5 border-y border-[var(--surface-border)] py-6 text-sm font-medium text-[var(--muted-foreground)]">
-          {trustIndicators.map((item) => (
-            <span key={item}>{item}</span>
-          ))}
-        </div>
-        </section>
-      </Reveal>
-
-      <Reveal>
-        <section className="grid gap-12 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
-        <div className="space-y-5">
-          <p className="text-[11px] font-medium uppercase tracking-[0.26em] text-[var(--muted-foreground)]">Core value</p>
-          <h2 className="max-w-xl text-4xl font-semibold tracking-[-0.03em] text-[var(--foreground)]">
-            One calm workspace for planning, execution, and release confidence.
-          </h2>
-          <p className="max-w-xl text-base leading-8 text-[var(--muted-foreground)]">
-            Instead of jumping between test generators, spreadsheets, bug notes, and release docs, QA Copilot keeps the quality workflow in one place with stronger structure and clearer decisions.
-          </p>
-        </div>
-
-        <div className="rounded-[24px] border border-[var(--surface-border)] bg-[var(--surface-elevated)] p-6 shadow-[var(--shadow-soft)] transition duration-300 hover:scale-[1.01]">
-          <div className="grid gap-4 md:grid-cols-[1.1fr_0.9fr]">
-            <div className="rounded-[20px] border border-[var(--surface-border)] bg-[var(--surface-muted)] p-5">
-              <p className="text-[11px] uppercase tracking-[0.22em] text-[var(--muted-foreground)]">Live workspace</p>
-              <h3 className="mt-3 text-2xl font-semibold text-[var(--foreground)]">Release readiness at a glance</h3>
-              <p className="mt-3 text-sm leading-7 text-[var(--muted-foreground)]">
-                Quality teams see credits, actions, recent outputs, and workflow status without hunting across disconnected tools.
+        <Reveal delay={160}>
+          <section className="grid gap-8 lg:grid-cols-[0.86fr_1.14fr] lg:items-start">
+            <div className="space-y-5">
+              <p className="text-[11px] font-medium uppercase tracking-[0.26em] text-slate-500">
+                Outcomes
               </p>
+              <h2 className="text-4xl font-semibold tracking-[-0.05em] text-slate-950 sm:text-[3rem]">
+                Clearer workflows create better release conversations.
+              </h2>
+              <div className="grid gap-4 sm:grid-cols-3">
+                {metrics.map((metric) => (
+                  <div key={metric.label} className="space-y-2">
+                    <p className="text-4xl font-semibold tracking-[-0.05em] text-slate-950">
+                      {metric.value}
+                    </p>
+                    <p className="text-sm text-slate-500">{metric.label}</p>
+                  </div>
+                ))}
+              </div>
             </div>
-            <div className="space-y-4">
-              {[
-                ["Coverage quality", "Structured, reusable outputs"],
-                ["Operations", "Admin approvals and usage controls"],
-                ["Team speed", "Less manual planning overhead"],
-              ].map(([label, value]) => (
-                <div key={label} className="rounded-[18px] border border-[var(--surface-border)] bg-[var(--surface-muted)] px-4 py-4 transition duration-300 hover:scale-[1.01]">
-                  <p className="text-[11px] uppercase tracking-[0.2em] text-[var(--muted-foreground)]">{label}</p>
-                  <p className="mt-2 text-base font-medium text-[var(--foreground)]">{value}</p>
+
+            <div className="grid gap-4">
+              {testimonials.map((item, index) => (
+                <div
+                  key={item.author}
+                  className="rounded-[28px] border border-[#dbe4ff] bg-[linear-gradient(180deg,rgba(255,255,255,0.9),rgba(247,250,255,0.96))] p-6 shadow-[0_16px_40px_rgba(15,23,42,0.06)] transition duration-500 hover:-translate-y-1"
+                  style={{ transitionDelay: `${index * 60}ms` }}
+                >
+                  <p className="text-lg leading-8 text-slate-800">"{item.quote}"</p>
+                  <div className="mt-5">
+                    <p className="text-sm font-semibold text-slate-950">{item.author}</p>
+                    <p className="text-sm text-slate-500">{item.role}</p>
+                  </div>
                 </div>
               ))}
             </div>
-          </div>
-        </div>
-        </section>
-      </Reveal>
+          </section>
+        </Reveal>
 
-      <Reveal>
-        <section className="space-y-8" id="features">
-        <div className="space-y-4">
-          <p className="text-[11px] font-medium uppercase tracking-[0.26em] text-[var(--muted-foreground)]">Features</p>
-          <h2 className="text-4xl font-semibold tracking-[-0.03em] text-[var(--foreground)]">
-            Built for the parts of QA that actually slow teams down.
-          </h2>
-        </div>
-        <div className="grid gap-6 md:grid-cols-2">
-          {featureList.map((feature, index) => (
-            <div key={feature.title} className="group flex items-start gap-4 rounded-[20px] border border-transparent px-2 py-2 transition duration-300 hover:border-[var(--surface-border)] hover:bg-[var(--surface-muted)]/55" style={{ transitionDelay: `${index * 45}ms` }}>
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[var(--surface-border)] bg-[var(--surface-muted)] text-[var(--accent)] transition duration-300 group-hover:-translate-y-0.5 group-hover:shadow-[var(--shadow-soft)]">
-                <feature.icon className="h-5 w-5" />
-              </div>
-              <div className="space-y-2">
-                <h3 className="text-lg font-semibold text-[var(--foreground)]">{feature.title}</h3>
-                <p className="text-sm leading-7 text-[var(--muted-foreground)]">{feature.text}</p>
-              </div>
+        <Reveal delay={220}>
+          <section id="pricing" className="space-y-8">
+            <div className="space-y-4 text-center">
+              <p className="text-[11px] font-medium uppercase tracking-[0.26em] text-slate-500">
+                Pricing
+              </p>
+              <h2 className="text-4xl font-semibold tracking-[-0.05em] text-slate-950 sm:text-[3rem]">
+                Plans designed for structured quality work.
+              </h2>
             </div>
-          ))}
-        </div>
-        </section>
-      </Reveal>
 
-      <Reveal>
-        <section className="grid gap-8 lg:grid-cols-3">
-        {useCases.map((item, index) => (
-          <div key={item.title} className="space-y-3" style={{ transitionDelay: `${index * 60}ms` }}>
-            <p className="text-[11px] font-medium uppercase tracking-[0.24em] text-[var(--muted-foreground)]">{item.title}</p>
-            <p className="text-lg font-semibold text-[var(--foreground)]">
-              {item.title === "For QA Engineers"
-                ? "Create better coverage with less setup."
-                : item.title === "For QA Leads"
-                  ? "Drive consistency without slowing the team down."
-                  : "Keep quality operations aligned as you scale."}
-            </p>
-            <p className="text-sm leading-7 text-[var(--muted-foreground)]">{item.text}</p>
-          </div>
-        ))}
-        </section>
-      </Reveal>
-
-      <Reveal>
-        <section className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
-        <div className="space-y-5">
-          <p className="text-[11px] font-medium uppercase tracking-[0.26em] text-[var(--muted-foreground)]">Social proof</p>
-          <h2 className="text-4xl font-semibold tracking-[-0.03em] text-[var(--foreground)]">
-            Clearer workflows create faster, more confident teams.
-          </h2>
-          <div className="grid gap-4 sm:grid-cols-3">
-            {metrics.map((metric) => (
-              <div key={metric.label} className="space-y-2">
-                <p className="text-4xl font-semibold tracking-[-0.03em] text-[var(--foreground)]">{metric.value}</p>
-                <p className="text-sm text-[var(--muted-foreground)]">{metric.label}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="space-y-6">
-          {testimonials.map((item, index) => (
-            <div key={item.author} className="border-l-2 border-[var(--surface-border)] pl-5" style={{ transitionDelay: `${index * 70}ms` }}>
-              <p className="text-lg leading-8 text-[var(--foreground)]">"{item.quote}"</p>
-              <div className="mt-4">
-                <p className="text-sm font-semibold text-[var(--foreground)]">{item.author}</p>
-                <p className="text-sm text-[var(--muted-foreground)]">{item.role}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-        </section>
-      </Reveal>
-
-      <Reveal>
-        <section id="pricing" className="space-y-10">
-        <div className="space-y-4">
-          <p className="text-[11px] font-medium uppercase tracking-[0.26em] text-[var(--muted-foreground)]">Pricing</p>
-          <h2 className="text-4xl font-semibold tracking-[-0.03em] text-[var(--foreground)]">
-            Three plans. One disciplined QA platform.
-          </h2>
-        </div>
-        <div className="grid gap-5 lg:grid-cols-3">
-          {plans.map((plan, index) => (
-            <div
-              key={plan.name}
-              style={{ transitionDelay: `${index * 60}ms` }}
-              className={`rounded-[24px] border p-6 shadow-[var(--shadow-soft)] transition duration-300 hover:-translate-y-1 hover:scale-[1.015] ${
-                plan.highlighted
-                  ? "scale-[1.02] border-[var(--accent)] bg-[var(--surface-elevated)] ring-1 ring-[var(--accent)]/45 shadow-[0_0_0_1px_rgba(20,184,166,0.1),0_22px_54px_rgba(20,184,166,0.18)]"
-                  : "border-[var(--surface-border)] bg-[var(--surface-elevated)]"
-              }`}
-            >
-              <div className="space-y-4">
-                <div className="flex items-center justify-between gap-4">
-                  <p className="text-[11px] font-medium uppercase tracking-[0.24em] text-[var(--muted-foreground)]">{plan.name}</p>
-                  {plan.highlighted ? (
-                    <span className="rounded-full bg-[var(--surface-muted)] px-3 py-1 text-xs font-medium text-[var(--foreground)]">
-                      Most popular
-                    </span>
-                  ) : null}
-                </div>
-                <div className="flex items-end gap-2">
-                  <span className="text-5xl font-semibold tracking-[-0.03em] text-[var(--foreground)]">{plan.price}</span>
-                  <span className="pb-2 text-sm text-[var(--muted-foreground)]">/ month</span>
-                </div>
-                <p className="text-sm leading-7 text-[var(--muted-foreground)]">{plan.description}</p>
-                <div className="space-y-3 pt-2">
-                  {plan.bullets.map((item) => (
-                    <div key={item} className="flex items-center gap-3 text-sm text-[var(--foreground)]">
-                      <CheckCircle2 className="h-4 w-4 text-[var(--accent)]" />
-                      {item}
+            <div className="grid gap-5 lg:grid-cols-3">
+              {plans.map((plan, index) => (
+                <div
+                  key={plan.name}
+                  className={`rounded-[30px] border p-6 shadow-[0_18px_50px_rgba(15,23,42,0.07)] transition duration-500 hover:-translate-y-1.5 ${
+                    plan.highlighted
+                      ? "border-[#1e1b4b] bg-[linear-gradient(180deg,#111827_0%,#1e1b4b_100%)] text-white"
+                      : "border-[#dbe4ff] bg-[linear-gradient(180deg,rgba(255,255,255,0.9),rgba(247,250,255,0.96))] text-slate-950"
+                  }`}
+                  style={{ transitionDelay: `${index * 50}ms` }}
+                >
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between gap-4">
+                      <p
+                        className={`text-[11px] font-medium uppercase tracking-[0.24em] ${
+                          plan.highlighted ? "text-indigo-200/70" : "text-slate-500"
+                        }`}
+                      >
+                        {plan.name}
+                      </p>
+                      {plan.highlighted ? (
+                        <span className="rounded-full border border-white/15 bg-white/8 px-3 py-1 text-xs font-medium text-white">
+                          Most popular
+                        </span>
+                      ) : null}
                     </div>
-                  ))}
+
+                    <div className="flex items-end gap-2">
+                      <span className="text-5xl font-semibold tracking-[-0.05em]">
+                        {plan.price}
+                      </span>
+                      <span
+                        className={`pb-2 text-sm ${
+                          plan.highlighted ? "text-indigo-200/70" : "text-slate-500"
+                        }`}
+                      >
+                        / month
+                      </span>
+                    </div>
+
+                    <p
+                      className={`text-sm leading-7 ${
+                        plan.highlighted ? "text-slate-300" : "text-slate-600"
+                      }`}
+                    >
+                      {plan.description}
+                    </p>
+
+                    <div className="space-y-3 pt-2">
+                      {plan.bullets.map((item) => (
+                        <div key={item} className="flex items-center gap-3 text-sm">
+                          <CheckCircle2
+                            className={`h-4 w-4 ${
+                              plan.highlighted ? "text-cyan-400" : "text-indigo-600"
+                            }`}
+                          />
+                          {item}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <Link href="/register" className="mt-8 block">
+                    <Button
+                      variant={plan.highlighted ? "secondary" : "primary"}
+                      className={`w-full ${
+                        plan.highlighted
+                          ? "border-white/10 bg-white text-slate-950 hover:bg-slate-100"
+                          : "border-transparent bg-[linear-gradient(135deg,#111827_0%,#3730a3_55%,#0ea5e9_100%)]"
+                      }`}
+                    >
+                      Choose {plan.name}
+                    </Button>
+                  </Link>
                 </div>
-              </div>
-              <Link href="/register" className="mt-8 block">
-                <Button variant={plan.highlighted ? "primary" : "secondary"} className="w-full">
-                  Choose {plan.name}
+              ))}
+            </div>
+          </section>
+        </Reveal>
+
+        <Reveal delay={260}>
+          <section className="rounded-[36px] border border-[#dbe4ff] bg-[radial-gradient(circle_at_top_left,rgba(99,102,241,0.14),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.9),rgba(246,249,255,0.98))] px-8 py-14 text-center shadow-[0_24px_70px_rgba(15,23,42,0.08)]">
+            <p className="text-[11px] font-medium uppercase tracking-[0.26em] text-slate-500">
+              Ready to upgrade QA operations?
+            </p>
+            <h2 className="mx-auto mt-4 max-w-3xl text-4xl font-semibold tracking-[-0.05em] text-slate-950 sm:text-[3rem]">
+              Give your team a sharper path from quality signals to confident releases.
+            </h2>
+            <div className="mt-8 flex flex-wrap justify-center gap-4">
+              <Link href="/register">
+                <Button className="min-w-[230px] border-transparent bg-[linear-gradient(135deg,#111827_0%,#3730a3_55%,#0ea5e9_100%)]">
+                  Start free trial
+                  <ArrowRight className="h-4 w-4" />
                 </Button>
               </Link>
             </div>
-          ))}
-        </div>
-        </section>
-      </Reveal>
-
-      <Reveal>
-        <section className="rounded-[32px] border border-[var(--surface-border)] bg-[linear-gradient(180deg,var(--surface-elevated),var(--surface-muted))] px-8 py-14 text-center shadow-[var(--shadow-soft)]">
-        <p className="text-[11px] font-medium uppercase tracking-[0.26em] text-[var(--muted-foreground)]">Ready to upgrade QA operations?</p>
-        <h2 className="mx-auto mt-4 max-w-3xl text-4xl font-semibold tracking-[-0.04em] text-[var(--foreground)]">
-          Give your team a faster path from quality signals to confident releases.
-        </h2>
-        <div className="mt-8 flex flex-wrap justify-center gap-4">
-          <Link href="/register">
-            <Button className="min-w-[230px]">
-              Start free trial
-              <ArrowRight className="h-4 w-4" />
-            </Button>
-          </Link>
-        </div>
-        </section>
-      </Reveal>
-    </main>
+          </section>
+        </Reveal>
+      </main>
+    </>
   );
 }

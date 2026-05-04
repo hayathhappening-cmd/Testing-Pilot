@@ -53,9 +53,9 @@ function getPasswordStrength(password: string) {
   if (/[a-z]/.test(password)) score += 1;
   if (/\d/.test(password)) score += 1;
 
-  if (score <= 1) return { label: "Weak", tone: "text-rose-200" };
-  if (score <= 3) return { label: "Medium", tone: "text-amber-100" };
-  return { label: "Strong", tone: "text-emerald-100" };
+  if (score <= 1) return { label: "Weak", tone: "text-rose-600" };
+  if (score <= 3) return { label: "Medium", tone: "text-amber-600" };
+  return { label: "Strong", tone: "text-emerald-600" };
 }
 
 export function AuthForm({ mode }: { mode: Mode }) {
@@ -193,15 +193,15 @@ export function AuthForm({ mode }: { mode: Mode }) {
 
     return (
       <div className="space-y-5">
-        <div className="rounded-full border border-white/10 bg-slate-950/70 p-1">
+        <div className="rounded-full border border-[var(--surface-border)] bg-[var(--surface-muted)] p-1">
           <div className="grid grid-cols-2 gap-1">
             <button
               type="button"
               onClick={() => updateRegisterField("accountType", "individual")}
               className={`inline-flex items-center justify-center gap-2 rounded-full px-4 py-3 text-sm font-semibold transition duration-200 ${
                 !isCompany
-                  ? "bg-cyan-300 text-slate-950 shadow-lg shadow-cyan-950/25"
-                  : "text-slate-300 hover:bg-white/5 hover:text-white"
+                  ? "bg-[var(--accent)] text-white shadow-lg shadow-teal-200"
+                  : "text-[var(--muted-foreground)] hover:bg-white hover:text-[var(--foreground)]"
               }`}
             >
               <UserRound className="h-4 w-4" />
@@ -212,8 +212,8 @@ export function AuthForm({ mode }: { mode: Mode }) {
               onClick={() => updateRegisterField("accountType", "company")}
               className={`inline-flex items-center justify-center gap-2 rounded-full px-4 py-3 text-sm font-semibold transition duration-200 ${
                 isCompany
-                  ? "bg-cyan-300 text-slate-950 shadow-lg shadow-cyan-950/25"
-                  : "text-slate-300 hover:bg-white/5 hover:text-white"
+                  ? "bg-[var(--accent)] text-white shadow-lg shadow-teal-200"
+                  : "text-[var(--muted-foreground)] hover:bg-white hover:text-[var(--foreground)]"
               }`}
             >
               <Building2 className="h-4 w-4" />
@@ -222,18 +222,18 @@ export function AuthForm({ mode }: { mode: Mode }) {
           </div>
         </div>
 
-        <div className="rounded-[20px] border border-amber-400/15 bg-amber-500/8 px-4 py-3 text-sm text-amber-50">
+        <div className="rounded-[20px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
           New company accounts require admin approval.
         </div>
 
         <div
-          className={`space-y-4 rounded-[24px] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(15,23,42,0.88))] p-6 transition-all duration-200 ${
-            dragActive ? "border-cyan-300/50 bg-cyan-400/[0.06]" : ""
+          className={`space-y-4 rounded-[24px] border border-[var(--surface-border)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(244,248,251,0.9))] p-6 transition-all duration-200 ${
+            dragActive ? "border-teal-300 bg-teal-50" : ""
           }`}
         >
           <div className="space-y-1">
-            <p className="text-sm font-medium text-white">Account setup</p>
-            <p className="text-sm text-slate-400">
+            <p className="text-sm font-medium text-[var(--foreground)]">Account setup</p>
+            <p className="text-sm text-[var(--muted-foreground)]">
               {isCompany
                 ? "Set up your admin seat first, then invite the rest of your company later."
                 : "Create your personal workspace and start using QA Copilot immediately after approval."}
@@ -258,7 +258,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
                     <select
                       value={registerForm.companyUsers}
                       onChange={(event) => updateRegisterField("companyUsers", event.target.value)}
-                      className="w-full rounded-2xl border border-white/12 bg-slate-950/60 px-4 py-3 text-sm text-white outline-none focus:border-cyan-300/60"
+                      className="w-full rounded-2xl border border-[var(--surface-border)] bg-white px-4 py-3 text-sm text-[var(--foreground)] outline-none focus:border-teal-400"
                     >
                       <option value="5">1 - 5 users</option>
                       <option value="10">6 - 10 users</option>
@@ -280,7 +280,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
                     setDragActive(false);
                     handleLogoSelection(event.dataTransfer.files?.[0] || null);
                   }}
-                  className="rounded-[24px] border border-dashed border-white/15 bg-slate-950/45 p-5 transition duration-200 hover:border-cyan-300/40 hover:bg-white/[0.03]"
+                  className="rounded-[24px] border border-dashed border-[var(--surface-border)] bg-[var(--surface-muted)] p-5 transition duration-200 hover:border-teal-300 hover:bg-teal-50/60"
                 >
                   <input
                     ref={fileInputRef}
@@ -294,17 +294,17 @@ export function AuthForm({ mode }: { mode: Mode }) {
                     onClick={() => fileInputRef.current?.click()}
                     className="flex w-full items-center gap-4 text-left"
                   >
-                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04]">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[var(--surface-border)] bg-white">
                       {logoPreview ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={logoPreview} alt="Company logo preview" className="h-12 w-12 rounded-xl object-cover" />
                       ) : (
-                        <UploadCloud className="h-6 w-6 text-cyan-200" />
+                        <UploadCloud className="h-6 w-6 text-teal-600" />
                       )}
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-white">{logoFile ? logoFile.name : "Upload company logo"}</p>
-                      <p className="mt-1 text-sm text-slate-400">Drag and drop or click to upload.</p>
+                      <p className="text-sm font-medium text-[var(--foreground)]">{logoFile ? logoFile.name : "Upload company logo"}</p>
+                      <p className="mt-1 text-sm text-[var(--muted-foreground)]">Drag and drop or click to upload.</p>
                     </div>
                   </button>
                 </div>
@@ -392,14 +392,14 @@ export function AuthForm({ mode }: { mode: Mode }) {
         </div>
 
         <div className="grid gap-3 md:grid-cols-2">
-          <p className={`text-sm ${activeEmail.length === 0 || validation.emailValid ? "text-slate-400" : "text-rose-200"}`}>
+          <p className={`text-sm ${activeEmail.length === 0 || validation.emailValid ? "text-[var(--muted-foreground)]" : "text-rose-600"}`}>
             {activeEmail.length === 0 || validation.emailValid ? "Use a valid work email address." : "Please enter a valid email address."}
           </p>
           <p className={`text-sm md:text-right ${passwordStrength.tone}`}>
             {activePassword ? `${passwordStrength.label} password` : "Use at least 8 characters with upper, lower, and numbers."}
           </p>
           {!validation.passwordsMatch && activeConfirmPassword ? (
-            <p className="text-sm text-rose-200 md:col-span-2">Passwords do not match yet.</p>
+            <p className="text-sm text-rose-600 md:col-span-2">Passwords do not match yet.</p>
           ) : null}
         </div>
 
@@ -412,11 +412,11 @@ export function AuthForm({ mode }: { mode: Mode }) {
 
   if (mode === "login") {
     return (
-      <Card className="mx-auto max-w-lg border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(15,23,42,0.92))]">
+      <Card className="mx-auto max-w-lg border-[var(--surface-border)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(244,248,251,0.92))]">
         <div className="mb-6 space-y-2">
-          <p className="text-sm uppercase tracking-[0.3em] text-cyan-300/80">Welcome back</p>
-          <h1 className="text-3xl font-semibold text-white">Login to QA Copilot</h1>
-          <p className="text-sm text-slate-300">Approved users can access the QA workspace and admin console.</p>
+          <p className="text-sm uppercase tracking-[0.3em] text-teal-600">Welcome back</p>
+          <h1 className="text-3xl font-semibold text-[var(--foreground)]">Login to QA Copilot</h1>
+          <p className="text-sm text-[var(--muted-foreground)]">Approved users can access the QA workspace and admin console.</p>
         </div>
 
         <form
@@ -428,15 +428,15 @@ export function AuthForm({ mode }: { mode: Mode }) {
         >
           <Input type="email" name="email" placeholder="Work email" required />
           <Input type="password" name="password" placeholder="Password" required />
-          {error ? <p className="text-sm text-rose-200">{error}</p> : null}
+          {error ? <p className="text-sm text-rose-600">{error}</p> : null}
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? "Please wait..." : "Login"}
           </Button>
         </form>
 
-        <p className="mt-5 text-sm text-slate-400">
+        <p className="mt-5 text-sm text-[var(--muted-foreground)]">
           Need an account?{" "}
-          <Link href="/register" className="text-cyan-200">
+          <Link href="/register" className="font-medium text-teal-700">
             Register
           </Link>
         </p>
@@ -447,12 +447,12 @@ export function AuthForm({ mode }: { mode: Mode }) {
   return (
     <div className="mx-auto w-full max-w-[1360px] px-4 sm:px-6 lg:px-8">
       <div className="grid gap-8 lg:grid-cols-[0.4fr_0.6fr]">
-        <section className="rounded-[28px] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.12),transparent_42%),linear-gradient(180deg,rgba(255,255,255,0.04),rgba(15,23,42,0.94))] p-8 lg:p-10">
-          <p className="text-sm uppercase tracking-[0.3em] text-cyan-300/80">Start your workspace</p>
-          <h1 className="mt-5 text-4xl font-semibold tracking-tight text-white lg:text-[3.25rem]">
+        <section className="rounded-[28px] border border-[var(--surface-border)] bg-[radial-gradient(circle_at_top_left,rgba(20,184,166,0.16),transparent_42%),linear-gradient(180deg,rgba(255,255,255,0.96),rgba(240,249,255,0.9))] p-8 lg:p-10 shadow-[var(--shadow-soft)]">
+          <p className="text-sm uppercase tracking-[0.3em] text-teal-600">Start your workspace</p>
+          <h1 className="mt-5 text-4xl font-semibold tracking-tight text-[var(--foreground)] lg:text-[3.25rem]">
             Create your QA Copilot account
           </h1>
-          <p className="mt-5 max-w-md text-base leading-8 text-slate-300">
+          <p className="mt-5 max-w-md text-base leading-8 text-[var(--muted-foreground)]">
             Set up a personal workspace or onboard your company with a cleaner, faster registration flow built for modern QA teams.
           </p>
 
@@ -462,15 +462,15 @@ export function AuthForm({ mode }: { mode: Mode }) {
               "Company and individual support",
               "Secure access",
             ].map((item) => (
-              <div key={item} className="flex items-center gap-3 text-sm text-slate-200">
-                <CheckCircle2 className="h-4 w-4 text-cyan-200" />
+              <div key={item} className="flex items-center gap-3 text-sm text-[var(--foreground)]/85">
+                <CheckCircle2 className="h-4 w-4 text-teal-600" />
                 <span>{item}</span>
               </div>
             ))}
           </div>
         </section>
 
-        <section className="rounded-[28px] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.035),rgba(15,23,42,0.96))] p-8 lg:p-10">
+        <section className="rounded-[28px] border border-[var(--surface-border)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.96))] p-8 shadow-[var(--shadow-soft)] lg:p-10">
           <form
             className="space-y-4"
             onSubmit={async (event) => {
@@ -479,12 +479,12 @@ export function AuthForm({ mode }: { mode: Mode }) {
             }}
           >
             {renderRegisterFields()}
-            {error ? <p className="text-sm text-rose-200">{error}</p> : null}
+            {error ? <p className="text-sm text-rose-600">{error}</p> : null}
           </form>
 
-          <p className="mt-6 text-sm text-slate-400">
+          <p className="mt-6 text-sm text-[var(--muted-foreground)]">
             Already have an account?{" "}
-            <Link href="/login" className="text-cyan-200">
+            <Link href="/login" className="font-medium text-teal-700">
               Login
             </Link>
           </p>

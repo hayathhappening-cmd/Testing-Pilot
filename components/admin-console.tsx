@@ -260,11 +260,11 @@ export function AdminConsole() {
   }, [operationsUserId]);
 
   if (error && !data) {
-    return <p className="text-sm text-rose-200">{error}</p>;
+    return <p className="text-sm text-rose-600">{error}</p>;
   }
 
   if (!data) {
-    return <p className="text-sm text-slate-300">Loading admin console...</p>;
+    return <p className="text-sm text-[var(--muted-foreground)]">Loading admin console...</p>;
   }
 
   const statCards = [
@@ -305,7 +305,7 @@ export function AdminConsole() {
                 <select
                   value={operationsUserId}
                   onChange={(event) => setOperationsUserId(event.target.value)}
-                  className="h-11 w-full rounded-2xl border border-[var(--surface-border)] bg-[var(--input-bg)] px-4 text-sm text-[var(--foreground)] outline-none transition focus:border-cyan-300/50"
+                  className="h-11 w-full rounded-2xl border border-[var(--surface-border)] bg-[var(--input-bg)] px-4 text-sm text-[var(--foreground)] outline-none transition focus:border-teal-300"
                 >
                   {filteredOperationsUsers.map((user) => (
                     <option key={user.id} value={user.id}>
@@ -330,7 +330,7 @@ export function AdminConsole() {
           </div>
 
           {error ? (
-            <div className="mt-5 rounded-2xl border border-rose-400/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-100">
+            <div className="mt-5 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
               {error}
             </div>
           ) : null}
@@ -463,72 +463,72 @@ export function AdminConsole() {
                 </div>
               </div>
             ) : filteredOperationsUsers.length === 0 ? (
-              <div className="rounded-[26px] border border-dashed border-white/10 bg-white/[0.025] px-6 py-10 text-center">
-                <p className="text-base font-medium text-white">No users match your search.</p>
-                <p className="mt-2 text-sm text-slate-400">Try a different name or email to load a user profile.</p>
+              <div className="rounded-[26px] border border-dashed border-[var(--surface-border)] bg-[var(--surface-muted)] px-6 py-10 text-center">
+                <p className="text-base font-medium text-[var(--foreground)]">No users match your search.</p>
+                <p className="mt-2 text-sm text-[var(--muted-foreground)]">Try a different name or email to load a user profile.</p>
               </div>
             ) : (
-              <p className="text-sm text-slate-400">No users available.</p>
+              <p className="text-sm text-[var(--muted-foreground)]">No users available.</p>
             )}
           </div>
         </Card>
 
-        <Card className="border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(15,23,42,0.94))]">
-          <div className="border-b border-white/6 pb-5">
-            <p className="text-xs uppercase tracking-[0.24em] text-cyan-300/80">OpenAI Usage</p>
-            <h2 className="mt-2 text-3xl font-semibold text-white">API token telemetry</h2>
+        <Card className="border-[var(--surface-border)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(244,248,251,0.92))]">
+          <div className="border-b border-[var(--surface-border)] pb-5">
+            <p className="text-xs uppercase tracking-[0.24em] text-teal-600">OpenAI Usage</p>
+            <h2 className="mt-2 text-3xl font-semibold text-[var(--foreground)]">API token telemetry</h2>
           </div>
 
           {openAiUsage ? (
             <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_repeat(3,minmax(0,0.7fr))]">
-              <div className="rounded-[22px] border border-white/8 bg-white/[0.04] p-5">
-                <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Usage overview</p>
-                <p className="mt-3 text-3xl font-bold text-white">{formatNumber(openAiUsage.usedTokens)} tokens used</p>
-                <p className="mt-2 text-sm text-slate-400">
+              <div className="rounded-[22px] border border-[var(--surface-border)] bg-white p-5">
+                <p className="text-xs uppercase tracking-[0.18em] text-[var(--muted-foreground)]">Usage overview</p>
+                <p className="mt-3 text-3xl font-bold text-[var(--foreground)]">{formatNumber(openAiUsage.usedTokens)} tokens used</p>
+                <p className="mt-2 text-sm text-[var(--muted-foreground)]">
                   Period: {new Date(openAiUsage.periodStart).toLocaleString("en-IN", { month: "short", year: "numeric" })}
                 </p>
                 {openAiUsage.limit ? (
                   <div className="mt-5">
-                    <div className="flex items-center justify-between gap-3 text-xs text-slate-400">
+                    <div className="flex items-center justify-between gap-3 text-xs text-[var(--muted-foreground)]">
                       <span>{formatNumber(openAiUsage.remainingTokens ?? 0)} remaining</span>
                       <span>{formatNumber(openAiUsage.limit)} limit</span>
                     </div>
-                    <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-white/8">
+                    <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-[var(--surface-muted)]">
                       <div
-                        className="h-full rounded-full bg-[linear-gradient(90deg,rgba(103,232,249,0.9),rgba(45,212,191,0.9))] transition-[width] duration-300 ease-out"
+                        className="h-full rounded-full bg-[var(--accent-gradient)] transition-[width] duration-300 ease-out"
                         style={{ width: `${openAiUsage.usagePercent ?? 0}%` }}
                       />
                     </div>
-                    <p className="mt-2 text-xs text-slate-400">{openAiUsage.usagePercent ?? 0}% of configured token capacity used</p>
+                    <p className="mt-2 text-xs text-[var(--muted-foreground)]">{openAiUsage.usagePercent ?? 0}% of configured token capacity used</p>
                   </div>
                 ) : (
-                  <p className="mt-5 text-xs leading-5 text-slate-400">
+                  <p className="mt-5 text-xs leading-5 text-[var(--muted-foreground)]">
                     Add `OPENAI_USAGE_TOKEN_LIMIT` if you also want remaining capacity and progress tracking.
                   </p>
                 )}
               </div>
 
-              <div className="rounded-[22px] border border-white/8 bg-white/[0.04] p-5">
-                <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Used</p>
-                <p className="mt-3 text-3xl font-bold text-white">{formatNumber(openAiUsage.usedTokens)}</p>
+              <div className="rounded-[22px] border border-[var(--surface-border)] bg-white p-5">
+                <p className="text-xs uppercase tracking-[0.18em] text-[var(--muted-foreground)]">Used</p>
+                <p className="mt-3 text-3xl font-bold text-[var(--foreground)]">{formatNumber(openAiUsage.usedTokens)}</p>
               </div>
 
-              <div className="rounded-[22px] border border-white/8 bg-white/[0.04] p-5">
-                <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Requests</p>
-                <p className="mt-3 text-3xl font-bold text-white">{formatNumber(openAiUsage.requestCount)}</p>
+              <div className="rounded-[22px] border border-[var(--surface-border)] bg-white p-5">
+                <p className="text-xs uppercase tracking-[0.18em] text-[var(--muted-foreground)]">Requests</p>
+                <p className="mt-3 text-3xl font-bold text-[var(--foreground)]">{formatNumber(openAiUsage.requestCount)}</p>
               </div>
 
-              <div className="rounded-[22px] border border-white/8 bg-white/[0.04] p-5">
-                <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Configured limit</p>
-                <p className="mt-3 text-3xl font-bold text-white">
+              <div className="rounded-[22px] border border-[var(--surface-border)] bg-white p-5">
+                <p className="text-xs uppercase tracking-[0.18em] text-[var(--muted-foreground)]">Configured limit</p>
+                <p className="mt-3 text-3xl font-bold text-[var(--foreground)]">
                   {openAiUsage.limit ? formatNumber(openAiUsage.limit) : "N/A"}
                 </p>
               </div>
             </div>
           ) : (
-            <div className="mt-6 rounded-[22px] border border-dashed border-white/10 bg-white/[0.025] px-6 py-10">
-              <p className="text-base font-medium text-white">OpenAI usage is unavailable.</p>
-              <p className="mt-2 text-sm leading-6 text-slate-400">
+            <div className="mt-6 rounded-[22px] border border-dashed border-[var(--surface-border)] bg-[var(--surface-muted)] px-6 py-10">
+              <p className="text-base font-medium text-[var(--foreground)]">OpenAI usage is unavailable.</p>
+              <p className="mt-2 text-sm leading-6 text-[var(--muted-foreground)]">
                 {openAiUsageMessage || "Configure OPENAI_ADMIN_API_KEY and OPENAI_USAGE_API_KEY_ID to load real API key usage."}
               </p>
             </div>

@@ -1,15 +1,15 @@
 import { cn } from "@/lib/utils";
 
 const styles: Record<string, string> = {
-  APPROVED: "bg-emerald-500/15 text-emerald-200 border-emerald-400/20",
-  PENDING: "bg-amber-500/15 text-amber-100 border-amber-400/20",
-  REJECTED: "bg-rose-500/15 text-rose-100 border-rose-400/20",
-  TERMINATED: "bg-rose-500/15 text-rose-100 border-rose-400/20",
-  active: "bg-emerald-500/15 text-emerald-200 border-emerald-400/20",
-  trialing: "bg-sky-500/15 text-sky-100 border-sky-400/20",
-  pending_approval: "bg-amber-500/15 text-amber-100 border-amber-400/20",
-  rejected: "bg-rose-500/15 text-rose-100 border-rose-400/20",
-  terminated: "bg-rose-500/15 text-rose-100 border-rose-400/20",
+  APPROVED: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  PENDING: "border-amber-200 bg-amber-50 text-amber-700",
+  REJECTED: "border-rose-200 bg-rose-50 text-rose-700",
+  TERMINATED: "border-rose-200 bg-rose-50 text-rose-700",
+  active: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  trialing: "border-sky-200 bg-sky-50 text-sky-700",
+  pending_approval: "border-amber-200 bg-amber-50 text-amber-700",
+  rejected: "border-rose-200 bg-rose-50 text-rose-700",
+  terminated: "border-rose-200 bg-rose-50 text-rose-700",
 };
 
 export function StatusBadge({
@@ -21,7 +21,7 @@ export function StatusBadge({
     <span
       className={cn(
         "inline-flex rounded-full border px-3 py-1 text-xs font-medium tracking-wide",
-        styles[status] || "border-white/15 bg-white/5 text-slate-200",
+        styles[status] || "border-[var(--surface-border)] bg-[var(--surface-muted)] text-[var(--foreground)]",
       )}
     >
       {status.toString().replaceAll("_", " ")}

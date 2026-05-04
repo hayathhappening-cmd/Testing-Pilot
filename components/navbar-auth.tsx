@@ -106,7 +106,7 @@ export function NavbarAuth() {
         <Link className="rounded-full px-4 py-2 text-sm text-[var(--foreground)]/85 transition duration-200 hover:bg-[var(--surface-muted)]" href="/login">
           Login
         </Link>
-        <Link className="rounded-full bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-slate-950 transition duration-200 hover:opacity-95" href="/register">
+        <Link className="rounded-full bg-[var(--accent-gradient)] px-4 py-2 text-sm font-semibold text-[var(--accent-foreground)] transition duration-200 hover:opacity-95" href="/register">
           Register
         </Link>
       </div>
@@ -118,9 +118,9 @@ export function NavbarAuth() {
       <button
         type="button"
         onClick={() => setIsOpen((current) => !current)}
-        className="group flex items-center gap-3 rounded-full border border-[var(--surface-border)] bg-[var(--surface-elevated)] px-2.5 py-2 text-left shadow-[0_14px_40px_rgba(2,8,23,0.16)] transition duration-200 hover:-translate-y-0.5 hover:border-cyan-300/20 hover:bg-[var(--surface-muted)]"
+        className="group flex items-center gap-3 rounded-full border border-[var(--surface-border)] bg-[var(--surface-elevated)] px-2.5 py-2 text-left shadow-[var(--shadow-soft)] transition duration-200 hover:-translate-y-0.5 hover:border-teal-200 hover:bg-[var(--surface-muted)]"
       >
-        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[linear-gradient(180deg,rgba(103,232,249,0.28),rgba(14,165,233,0.22))] text-sm font-semibold text-[var(--foreground)] transition duration-200 group-hover:scale-[1.04]">
+        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[linear-gradient(180deg,rgba(20,184,166,0.16),rgba(59,130,246,0.12))] text-sm font-semibold text-[var(--foreground)] transition duration-200 group-hover:scale-[1.04]">
           {userInitials}
         </div>
         <div className="hidden min-w-0 sm:block">
@@ -131,7 +131,7 @@ export function NavbarAuth() {
       </button>
 
       <div
-        className={`absolute right-0 top-[calc(100%+12px)] z-[70] w-72 origin-top-right rounded-2xl border border-[var(--surface-border)] bg-[var(--dropdown-bg)] p-2 shadow-[0_24px_60px_rgba(2,8,23,0.2)] backdrop-blur-md transition duration-200 ${
+        className={`absolute right-0 top-[calc(100%+12px)] z-[70] w-72 origin-top-right rounded-2xl border border-[var(--surface-border)] bg-[var(--dropdown-bg)] p-2 shadow-[var(--shadow-card-hover)] backdrop-blur-md transition duration-200 ${
           isOpen ? "pointer-events-auto translate-y-0 opacity-100" : "pointer-events-none -translate-y-2 opacity-0"
         }`}
       >
@@ -178,9 +178,9 @@ export function NavbarAuth() {
           <button
             type="button"
             onClick={() => void handleLogout()}
-            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-rose-100 transition duration-200 hover:bg-rose-500/10"
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-rose-700 transition duration-200 hover:bg-rose-50"
           >
-            <LogOut className="h-4 w-4 text-rose-200" />
+            <LogOut className="h-4 w-4 text-rose-600" />
             Logout
           </button>
         </div>

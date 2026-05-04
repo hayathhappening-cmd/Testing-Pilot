@@ -33,6 +33,10 @@ export async function parseUploadedFile(file?: Express.Multer.File | null) {
     return `Image asset uploaded for QA review: ${file.originalname}. Use provided screenshot notes or design context for visual comparison.`;
   }
 
+  if (/\.(mp4|mov|webm|avi|mkv)$/i.test(filename)) {
+    return `Video evidence uploaded for QA review: ${file.originalname}. Use the user's notes to infer the visible bug sequence, UI breakage, timing issue, or interaction failure captured in the recording.`;
+  }
+
   if (filename.endsWith(".xlsx") || filename.endsWith(".xls")) {
     const workbook = XLSX.read(file.buffer, { type: "buffer" });
     const sheetSummaries = workbook.SheetNames.map((sheetName) => {

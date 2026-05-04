@@ -10,6 +10,7 @@ import {
   analyzeContentMatch,
   analyzeDesignMatch,
   analyzeReleaseRisk,
+  executeTestCases,
   generateApiTests,
   generateAutomationScript,
   generateTestCases,
@@ -60,12 +61,14 @@ aiRouter.post("/automation", async (request, response) => {
   response.json(result);
 });
 
-aiRouter.post("/bug-analyzer", async (request, response) => {
+aiRouter.post("/bug-analyzer", upload.single("file"), async (request, response) => {
   const user = await getUser(request.auth!.userId);
+  const content = (await parseUploadedFile(request.file)) || "";
   const result = await analyzeBug({
     user,
-    input: String(request.body.content || ""),
+    input: [String(request.body.content || ""), content].filter(Boolean).join("\n\n"),
     projectId: request.body.projectId,
+    sourceName: request.file?.originalname,
   });
   response.json(result);
 });
@@ -88,6 +91,20 @@ aiRouter.post("/test-report", upload.single("file"), async (request, response) =
     user,
     input: content,
     projectId: request.body.projectId,
+    sourceName: request.file?.originalname,
+  });
+  response.json(result);
+});
+
+aiRouter.post("/execute-test-cases", upload.single("file"), async (request, response) => {
+  const content = (await parseUploadedFile(request.file)) || String(request.body.content || "");
+  const user = await getUser(request.auth!.userId);
+  const result = await executeTestCases({
+    user,
+    input: content,
+    baseUrl: String(request.body.baseUrl || ""),
+    projectId: request.body.projectId,
+    sourceName: request.file?.originalname,
   });
   response.json(result);
 });
@@ -103,12 +120,21 @@ aiRouter.post("/api-tests", upload.single("file"), async (request, response) => 
   response.json(result);
 });
 
-aiRouter.post("/release-risk", async (request, response) => {
+aiRouter.post("/release-risk", upload.single("file"), async (request, response) => {
   const user = await getUser(request.auth!.userId);
+  const content = (await parseUploadedFile(request.file)) || "";
+  const combinedInput = [
+    request.body.stagingUrl ? `Staging URL: ${String(request.body.stagingUrl)}` : "",
+    String(request.body.content || ""),
+    content,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
   const result = await analyzeReleaseRisk({
     user,
-    input: String(request.body.content || ""),
+    input: combinedInput,
     projectId: request.body.projectId,
+    sourceName: request.file?.originalname,
   });
   response.json(result);
 });

@@ -2,12 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { LoaderCircle, WandSparkles } from "lucide-react";
+import { ChevronDown, Download, History, LoaderCircle, WandSparkles } from "lucide-react";
 import { Button } from "./button";
 import { Card } from "./card";
 import { Input, Textarea } from "./input";
 import { Logo } from "./logo";
-import { apiDownload, apiRequest } from "../lib/client-api";
+import { apiDownload, apiRequest, getToken } from "../lib/client-api";
 
 type OverviewPayload = {
   user: {
@@ -29,6 +29,19 @@ type OverviewPayload = {
     actionsCount: number;
   };
   recentActivity: Array<{ id: string; action: string; creditsUsed: number; createdAt: string }>;
+  recentArtifacts: Array<{
+    id: string;
+    type: string;
+    title: string;
+    sourceName?: string | null;
+    outputJson?: unknown;
+    outputText?: string | null;
+    createdAt: string;
+    project: {
+      id: string;
+      name: string;
+    };
+  }>;
   projects: Array<{
     id: string;
     name: string;
@@ -39,9 +52,30 @@ type OverviewPayload = {
   modules: string[];
 };
 
+type ActivityTimelineItem =
+  | {
+      id: string;
+      kind: "artifact";
+      createdAt: string;
+      title: string;
+      subtitle: string;
+      creditsUsed?: number | null;
+      artifact: OverviewPayload["recentArtifacts"][number];
+    }
+  | {
+      id: string;
+      kind: "usage";
+      createdAt: string;
+      title: string;
+      subtitle: string;
+      detail: string;
+      creditsUsed: number;
+    };
+
 type SectionId =
   | "overview"
   | "test-cases"
+  | "execution"
   | "automation"
   | "bug"
   | "release-risk"
@@ -76,9 +110,10 @@ const navGroups: NavGroup[] = [
     items: [
       { id: "overview", label: "Overview", title: "QA Command Center", desc: "Track usage, activity, and workspace momentum." },
       { id: "test-cases", label: "Test Design", title: "Generate Test Cases from Requirements", desc: "Turn requirements into structured QA coverage and export-ready outputs." },
-      { id: "automation", label: "Automation", title: "Generate Automation Scripts", desc: "Convert validated flows into framework-ready automation starters." },
+      { id: "execution", label: "Execute", title: "Execute Website Test Cases", desc: "Run website-focused test cases against a live URL and capture pass, fail, or blocked evidence." },
+      { id: "automation", label: "Automation", title: "Turn Manual QA Into Framework-Ready Automation", desc: "Convert validated scenarios into cleaner Playwright, Cypress, or Selenium starters your team can extend immediately." },
       { id: "bug", label: "Bug Analysis", title: "Analyze Defects and Root Causes", desc: "Explain likely causes, impact, and recommended next steps." },
-      { id: "release-risk", label: "Release Risk", title: "Assess Release Risk", desc: "Summarize release confidence using defects, gaps, and quality signals." },
+      { id: "release-risk", label: "Release Risk", title: "Turn QA Signals Into Go / No-Go Release Decisions", desc: "Convert defects, coverage gaps, execution evidence, and residual risk into a clearer release-readiness verdict leadership can act on." },
     ],
   },
   {
@@ -842,6 +877,19 @@ async function exportSpreadsheet(rows: Record<string, string>[], filename: strin
   );
 }
 
+function toSimpleTestCaseRow(row: Record<string, unknown>) {
+  return {
+    "Test Case ID": String(row.id || ""),
+    Module: String(row.module || ""),
+    Scenario: String(row.scenario || ""),
+    Preconditions: Array.isArray(row.preconditions) ? row.preconditions.join(" | ") : String(row.preconditions || ""),
+    "Test Steps": Array.isArray(row.steps) ? row.steps.join(" | ") : String(row.steps || ""),
+    "Expected Result": String(row.expectedResult || ""),
+    Priority: String(row.priority || ""),
+    Type: String(row.type || ""),
+  };
+}
+
 async function exportQaPackWorkbook(result: Record<string, unknown>, filename: string) {
   let XLSX: typeof import("xlsx");
   try {
@@ -902,6 +950,8 @@ async function exportQaPackWorkbook(result: Record<string, unknown>, filename: s
     "Release Impact": Array.from(entry.releaseImpacts).join(" | "),
   }));
 
+  const qaTestCaseRows = testCases.map((row) => toSimpleTestCaseRow(row));
+
   const detailedRows = testCases.map((row) => ({
     "Test Case ID": String(row.id || ""),
     "Requirement ID": String(row.requirementId || ""),
@@ -936,6 +986,7 @@ async function exportQaPackWorkbook(result: Record<string, unknown>, filename: s
   ].filter((row) => row.Value);
 
   const sheets: Array<[string, Record<string, string | number>[]]> = [
+    ["QA Test Cases", qaTestCaseRows],
     ["Overview", overviewRows],
     ["Smoke Suite", toRows("Smoke Item", getList(result.smokeSuite))],
     ["Regression Suite", toRows("Regression Item", getList(result.regressionSuite))],
@@ -1113,6 +1164,163 @@ function formatDate(dateString: string) {
   return new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeStyle: "short" }).format(new Date(dateString));
 }
 
+function formatArtifactTypeLabel(value: string) {
+  return value
+    .toLowerCase()
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function formatActivityActionLabel(value: string) {
+  return value
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/[_-]+/g, " ")
+    .trim();
+}
+
+function getUsageActivityCopy(action: string, creditsUsed: number) {
+  const normalized = action.trim().toLowerCase();
+
+  if (normalized.includes("release risk")) {
+    return {
+      title: "Release risk assessment",
+      subtitle: "Readiness review",
+      detail: "Reviewed blockers, gaps, and quality signals to produce a release-readiness view for the selected scope.",
+    };
+  }
+
+  if (normalized.includes("execute test cases") || normalized.includes("test cases")) {
+    return {
+      title: "Test case generation run",
+      subtitle: "Coverage created",
+      detail: "Prepared structured test scenarios and validation coverage from the provided requirement or feature input.",
+    };
+  }
+
+  if (normalized.includes("test execution") || normalized.includes("execution")) {
+    return {
+      title: "Test execution summary",
+      subtitle: "Execution results recorded",
+      detail: "Captured execution outcomes and saved the latest run summary so it can be reopened from your activity history.",
+    };
+  }
+
+  if (normalized.includes("test report") || normalized.includes("report")) {
+    return {
+      title: "Test report generated",
+      subtitle: "Stakeholder summary prepared",
+      detail: "Compiled QA findings into a shareable report with status highlights, observations, and recommended next steps.",
+    };
+  }
+
+  if (normalized.includes("test data") || normalized.includes("data")) {
+    return {
+      title: "Test data pack created",
+      subtitle: "Sample data ready",
+      detail: "Generated reusable records to support positive, negative, and edge-case test coverage for the selected workflow.",
+    };
+  }
+
+  if (normalized.includes("automation")) {
+    return {
+      title: "Automation draft created",
+      subtitle: "Automation starter prepared",
+      detail: "Converted the provided flow into framework-ready automation guidance so scripting can move faster.",
+    };
+  }
+
+  if (normalized.includes("bug")) {
+    return {
+      title: "Bug analysis completed",
+      subtitle: "Defect review saved",
+      detail: "Summarized likely root cause, user impact, and practical follow-up actions for the reported issue.",
+    };
+  }
+
+  if (normalized.includes("api")) {
+    return {
+      title: "API test coverage generated",
+      subtitle: "Endpoint validation prepared",
+      detail: "Created request and response validation coverage from the supplied API details to strengthen service-level QA.",
+    };
+  }
+
+  if (normalized.includes("content match")) {
+    return {
+      title: "Content match review",
+      subtitle: "Live content compared",
+      detail: "Compared live content against the reference source to identify missing sections, mismatches, and drift.",
+    };
+  }
+
+  if (normalized.includes("design match")) {
+    return {
+      title: "Design match review",
+      subtitle: "Design fidelity checked",
+      detail: "Checked the live experience against the provided design reference to highlight layout and responsive differences.",
+    };
+  }
+
+  if (normalized.includes("bulk url")) {
+    return {
+      title: "Bulk URL QA scan",
+      subtitle: "Multi-page QA run",
+      detail: "Scanned multiple URLs in one pass to surface regressions and quality issues across the selected pages.",
+    };
+  }
+
+  return {
+    title: formatActivityActionLabel(action),
+    subtitle: "Usage event",
+    detail: `This workspace action used ${creditsUsed} credits and remains available in your activity history for future review.`,
+  };
+}
+
+function normalizeFilenameSegment(value: string) {
+  return (
+    value
+      .trim()
+      .replace(/[^a-zA-Z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "") || "Report"
+  );
+}
+
+function buildProjectQaFilename(projectName: string | undefined, uspName: string) {
+  const safeProjectName = normalizeFilenameSegment(projectName || "Project");
+  const safeUspName = normalizeFilenameSegment(uspName);
+  return `${safeProjectName}_QA_${safeUspName}`;
+}
+
+function getArtifactUspName(type: string) {
+  const artifactUspMap: Record<string, string> = {
+    TEST_CASES: "Test_Design",
+    TEST_REPORT: "Execution",
+    RELEASE_RISK: "Release_Risk",
+    CONTENT_MATCH: "Content_Match",
+    DESIGN_MATCH: "Design_Match",
+    BULK_URL_QA: "Bulk_URL_QA",
+    API_TESTS: "API_Testing",
+    AUTOMATION_SCRIPT: "Automation",
+    BUG_ANALYSIS: "Bug_Analysis",
+    TEST_DATA: "Test_Data",
+  };
+
+  return artifactUspMap[type] || normalizeFilenameSegment(formatArtifactTypeLabel(type));
+}
+
+function createArtifactFilename(artifact: { title: string; type: string; project?: { name: string } | null }) {
+  return buildProjectQaFilename(artifact.project?.name, getArtifactUspName(artifact.type));
+}
+
+function getArtifactRecord(outputJson: unknown) {
+  if (!outputJson || typeof outputJson !== "object" || Array.isArray(outputJson)) {
+    return null;
+  }
+
+  return outputJson as Record<string, unknown>;
+}
+
 function toSentence(value: string) {
   const normalized = value.trim();
   if (!normalized) return "";
@@ -1122,11 +1330,11 @@ function toSentence(value: string) {
 function ResultBlock({ title, items }: { title: string; items: string[] }) {
   if (!items.length) return null;
   return (
-    <div className="rounded-[28px] border border-white/8 bg-white/[0.035] p-5">
-      <h4 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-100">{title}</h4>
+    <div className="rounded-[28px] border border-[var(--surface-border)] bg-[var(--surface-muted)] p-5">
+      <h4 className="text-sm font-semibold uppercase tracking-[0.18em] text-[var(--foreground)]">{title}</h4>
       <div className="mt-4 space-y-3">
         {items.map((item) => (
-          <div key={item} className="rounded-2xl border border-white/8 bg-slate-950/60 px-4 py-3 text-sm leading-7 text-slate-200">
+          <div key={item} className="rounded-2xl border border-[var(--surface-border)] bg-white px-4 py-3 text-sm leading-7 text-[var(--foreground)]">
             {item}
           </div>
         ))}
@@ -1135,26 +1343,262 @@ function ResultBlock({ title, items }: { title: string; items: string[] }) {
   );
 }
 
+function TestCasesTable({ cases }: { cases: Array<Record<string, unknown>> }) {
+  if (!cases.length) return null;
+
+  return (
+    <div className="rounded-[28px] border border-[var(--surface-border)] bg-[var(--surface-muted)] p-5">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h4 className="text-base font-semibold text-[var(--foreground)]">QA Test Cases</h4>
+          <p className="mt-2 text-sm text-[var(--muted-foreground)]">
+            Spreadsheet-ready cases aligned to the core workbook format.
+          </p>
+        </div>
+        <div className="rounded-full border border-[var(--surface-border)] bg-white px-3 py-1 text-sm font-medium text-[var(--foreground)]">
+          {cases.length} cases
+        </div>
+      </div>
+      <div className="mt-5 overflow-x-auto rounded-2xl border border-[var(--surface-border)] bg-white">
+        <table className="min-w-full text-left text-sm">
+          <thead className="bg-[var(--surface-muted)] text-[var(--foreground)]">
+            <tr>
+              {["Test Case ID", "Module", "Scenario", "Preconditions", "Test Steps", "Expected Result", "Priority", "Type"].map((heading) => (
+                <th key={heading} className="px-4 py-3 font-medium">
+                  {heading}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {cases.map((row, index) => {
+              const display = toSimpleTestCaseRow(row);
+              return (
+                <tr key={`${display["Test Case ID"]}-${index}`} className="border-t border-[var(--surface-border)] align-top text-[var(--foreground)]">
+                  {Object.values(display).map((value, cellIndex) => (
+                    <td key={`${display["Test Case ID"]}-${cellIndex}`} className="max-w-[280px] px-4 py-3 leading-6">
+                      {value}
+                    </td>
+                  ))}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+async function exportExecutionWorkbook(result: Record<string, unknown>, filename: string) {
+  let XLSX: typeof import("xlsx");
+  try {
+    XLSX = await import("xlsx");
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    if (/ChunkLoadError|Loading chunk/i.test(message)) {
+      throw new Error("The export module was refreshed while the app was open. Reload the page once, then try the export again.");
+    }
+    throw error;
+  }
+
+  const workbook = XLSX.utils.book_new();
+  const executionBreakdown =
+    result.executionBreakdown && typeof result.executionBreakdown === "object"
+      ? (result.executionBreakdown as Record<string, unknown>)
+      : {};
+  const executedCases = Array.isArray(result.testCases)
+    ? (result.testCases as Array<Record<string, unknown>>).filter(
+        (item) => Boolean(item && typeof item === "object" && ("status" in item || "executedSteps" in item || "evidenceUrl" in item)),
+      )
+    : [];
+
+  const overviewRows = [
+    { Metric: "Summary", Value: typeof result.summary === "string" ? result.summary : "" },
+    { Metric: "Pass Rate", Value: typeof result.passRate === "string" ? result.passRate : "" },
+    { Metric: "Go/No-Go Recommendation", Value: typeof result.goNoGoRecommendation === "string" ? result.goNoGoRecommendation : "" },
+    { Metric: "Release Recommendation", Value: typeof result.releaseRecommendation === "string" ? result.releaseRecommendation : "" },
+    { Metric: "Total Cases", Value: typeof executionBreakdown.totalCases === "number" ? executionBreakdown.totalCases : executedCases.length },
+    { Metric: "Passed", Value: typeof executionBreakdown.passed === "number" ? executionBreakdown.passed : executedCases.filter((item) => item.status === "passed").length },
+    { Metric: "Failed", Value: typeof executionBreakdown.failed === "number" ? executionBreakdown.failed : executedCases.filter((item) => item.status === "failed").length },
+    { Metric: "Blocked", Value: typeof executionBreakdown.blocked === "number" ? executionBreakdown.blocked : executedCases.filter((item) => item.status === "blocked").length },
+    { Metric: "Credits Used", Value: typeof result.creditsUsed === "number" ? result.creditsUsed : "" },
+    { Metric: "Generated At", Value: new Date().toLocaleString("en-IN") },
+  ].filter((row) => row.Value !== "");
+
+  const caseRows = executedCases.map((item, index) => ({
+    Order: index + 1,
+    "Test Case ID": typeof item.id === "string" ? item.id : `Case ${index + 1}`,
+    Title: typeof item.title === "string" ? item.title : "",
+    Status: typeof item.status === "string" ? item.status : "",
+    "Current URL": typeof item.currentUrl === "string" ? item.currentUrl : "",
+    "Expected Result": typeof item.expectedResult === "string" ? item.expectedResult : "",
+    "Actual Result": typeof item.actualResult === "string" ? item.actualResult : "",
+    "Evidence URL": typeof item.evidenceUrl === "string" ? item.evidenceUrl : "",
+  }));
+
+  const stepRows = executedCases.flatMap((item, caseIndex) => {
+    const caseId = typeof item.id === "string" ? item.id : `Case ${caseIndex + 1}`;
+    const executedSteps = Array.isArray(item.executedSteps)
+      ? item.executedSteps.filter((entry): entry is string => typeof entry === "string")
+      : [];
+    const blockedSteps = Array.isArray(item.blockedSteps)
+      ? item.blockedSteps.filter((entry): entry is string => typeof entry === "string")
+      : [];
+
+    return [
+      ...executedSteps.map((step, stepIndex) => ({
+        "Test Case ID": caseId,
+        Type: "Executed Step",
+        Order: stepIndex + 1,
+        Detail: step,
+      })),
+      ...blockedSteps.map((step, stepIndex) => ({
+        "Test Case ID": caseId,
+        Type: "Blocked / Failed Detail",
+        Order: stepIndex + 1,
+        Detail: step,
+      })),
+    ];
+  });
+
+  const issueRows = [
+    ...toTextList(result.criticalIssues).map((item, index) => ({
+      Type: "Critical Issue",
+      Order: index + 1,
+      Detail: item,
+    })),
+    ...toTextList(result.blockers).map((item, index) => ({
+      Type: "Blocker",
+      Order: index + 1,
+      Detail: item,
+    })),
+    ...toTextList(result.defectSummary).map((item, index) => ({
+      Type: "Defect Summary",
+      Order: index + 1,
+      Detail: item,
+    })),
+    ...toTextList(result.stakeholderActions).map((item, index) => ({
+      Type: "Stakeholder Action",
+      Order: index + 1,
+      Detail: item,
+    })),
+    ...toTextList(result.evidenceRequired).map((item, index) => ({
+      Type: "Evidence Required",
+      Order: index + 1,
+      Detail: item,
+    })),
+  ];
+
+  const sheets: Array<[string, Record<string, string | number>[]]> = [
+    ["Overview", overviewRows],
+    ["Executed Cases", caseRows],
+    ["Execution Details", stepRows],
+    ["Issues & Actions", issueRows],
+  ];
+
+  sheets.forEach(([sheetName, rows]) => {
+    if (!rows.length) return;
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(rows), sheetName);
+  });
+
+  const content = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+  downloadBlob(
+    new Blob([content], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    }),
+    `${filename}.xlsx`,
+  );
+}
+
+function ExecutedCasesBlock({
+  cases,
+}: {
+  cases: Array<Record<string, unknown>>;
+}) {
+  if (!cases.length) return null;
+
+  return (
+    <div className="rounded-[28px] border border-[var(--surface-border)] bg-[var(--surface-muted)] p-5">
+      <h4 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-100">Executed cases</h4>
+      <div className="mt-4 space-y-4">
+        {cases.map((item, index) => {
+          const id = typeof item.id === "string" ? item.id : `Case ${index + 1}`;
+          const title = typeof item.title === "string" ? item.title : id;
+          const status = typeof item.status === "string" ? item.status : "unknown";
+          const actualResult = typeof item.actualResult === "string" ? item.actualResult : "";
+          const currentUrl = typeof item.currentUrl === "string" ? item.currentUrl : "";
+          const evidenceUrl = typeof item.evidenceUrl === "string" ? item.evidenceUrl : "";
+          const executedSteps = Array.isArray(item.executedSteps) ? item.executedSteps.filter((entry): entry is string => typeof entry === "string") : [];
+          const blockedSteps = Array.isArray(item.blockedSteps) ? item.blockedSteps.filter((entry): entry is string => typeof entry === "string") : [];
+
+          return (
+            <div key={`${id}-${index}`} className="rounded-2xl border border-[var(--surface-border)] bg-white p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="font-semibold text-[var(--foreground)]">{id} - {title}</p>
+                  {currentUrl ? <p className="mt-1 text-xs text-slate-400">{currentUrl}</p> : null}
+                </div>
+                <div className="rounded-full border border-[var(--surface-border)] bg-[var(--surface-muted)] px-3 py-1 text-xs uppercase tracking-[0.18em] text-[var(--foreground)]">
+                  {status}
+                </div>
+              </div>
+              {actualResult ? <p className="mt-3 text-sm leading-7 text-[var(--foreground)]">{actualResult}</p> : null}
+              {executedSteps.length ? (
+                <div className="mt-3">
+                  <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Executed steps</p>
+                  <div className="mt-2 space-y-2">
+                    {executedSteps.map((step) => (
+                      <div key={step} className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{step}</div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+              {blockedSteps.length ? (
+                <div className="mt-3">
+                  <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Blocked or unsupported steps</p>
+                  <div className="mt-2 space-y-2">
+                    {blockedSteps.map((step) => (
+                      <div key={step} className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">{step}</div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+              {evidenceUrl ? (
+                <div className="mt-3">
+                  <a href={evidenceUrl} target="_blank" rel="noreferrer" className="text-sm font-medium text-teal-700 underline decoration-teal-300 underline-offset-4">
+                    Open screenshot evidence
+                  </a>
+                </div>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function coverageTone(status: string) {
   const normalized = status.toLowerCase();
   if (normalized.includes("partial")) {
-    return "border-amber-400/20 bg-amber-500/10 text-amber-100";
+    return "border-amber-200 bg-amber-50 text-amber-700";
   }
   if (normalized.includes("covered")) {
-    return "border-emerald-400/20 bg-emerald-500/10 text-emerald-100";
+    return "border-emerald-200 bg-emerald-50 text-emerald-700";
   }
-  return "border-rose-400/20 bg-rose-500/10 text-rose-100";
+  return "border-rose-200 bg-rose-50 text-rose-700";
 }
 
 function goNoGoTone(status: string) {
   const normalized = status.toLowerCase();
   if (normalized.includes("no-go")) {
-    return "border-rose-400/20 bg-rose-500/10 text-rose-100";
+    return "border-rose-200 bg-rose-50 text-rose-700";
   }
   if (normalized.includes("conditional")) {
-    return "border-amber-400/20 bg-amber-500/10 text-amber-100";
+    return "border-amber-200 bg-amber-50 text-amber-700";
   }
-  return "border-emerald-400/20 bg-emerald-500/10 text-emerald-100";
+  return "border-emerald-200 bg-emerald-50 text-emerald-700";
 }
 
 function TraceabilityMatrix({
@@ -1174,46 +1618,46 @@ function TraceabilityMatrix({
   if (!rows.length) return null;
 
   return (
-    <div className="rounded-[28px] border border-white/8 bg-white/[0.035] p-5">
+    <div className="rounded-[28px] border border-[var(--surface-border)] bg-[var(--surface-muted)] p-5">
       <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
         <div>
-          <h4 className="text-base font-semibold text-white">Traceability Matrix</h4>
-          <p className="mt-1 text-sm text-slate-300">Requirement-level coverage, ownership, automation status, and release impact.</p>
+          <h4 className="text-base font-semibold text-[var(--foreground)]">Traceability Matrix</h4>
+          <p className="mt-1 text-sm text-[var(--muted-foreground)]">Requirement-level coverage, ownership, automation status, and release impact.</p>
         </div>
       </div>
       <div className="mt-4 space-y-3">
         {rows.map((row) => (
-          <div key={row.requirementId} className="rounded-2xl border border-white/8 bg-slate-950/60 p-4">
+          <div key={row.requirementId} className="rounded-2xl border border-[var(--surface-border)] bg-white p-4">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <div>
-                <p className="text-sm font-semibold text-white">{row.requirementId}</p>
-                <p className="mt-1 text-sm text-slate-300">{row.modules || "Unmapped module"}</p>
+                <p className="text-sm font-semibold text-[var(--foreground)]">{row.requirementId}</p>
+                <p className="mt-1 text-sm text-[var(--muted-foreground)]">{row.modules || "Unmapped module"}</p>
               </div>
               <div className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${coverageTone(row.coverageStatus)}`}>
                 {row.coverageStatus}
               </div>
             </div>
             <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-              <div className="rounded-xl border border-white/8 bg-white/[0.03] px-3 py-3">
-                <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Linked Cases</p>
-                <p className="mt-2 text-sm text-slate-100">{row.linkedTestCases || "None"}</p>
+              <div className="rounded-xl border border-[var(--surface-border)] bg-[var(--surface-muted)] px-3 py-3">
+                <p className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted-foreground)]">Linked Cases</p>
+                <p className="mt-2 text-sm text-[var(--foreground)]">{row.linkedTestCases || "None"}</p>
               </div>
-              <div className="rounded-xl border border-white/8 bg-white/[0.03] px-3 py-3">
-                <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Priority</p>
-                <p className="mt-2 text-sm text-slate-100">{row.priority || "Not set"}</p>
+              <div className="rounded-xl border border-[var(--surface-border)] bg-[var(--surface-muted)] px-3 py-3">
+                <p className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted-foreground)]">Priority</p>
+                <p className="mt-2 text-sm text-[var(--foreground)]">{row.priority || "Not set"}</p>
               </div>
-              <div className="rounded-xl border border-white/8 bg-white/[0.03] px-3 py-3">
-                <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Owner</p>
-                <p className="mt-2 text-sm text-slate-100">{row.owner || "Not assigned"}</p>
+              <div className="rounded-xl border border-[var(--surface-border)] bg-[var(--surface-muted)] px-3 py-3">
+                <p className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted-foreground)]">Owner</p>
+                <p className="mt-2 text-sm text-[var(--foreground)]">{row.owner || "Not assigned"}</p>
               </div>
-              <div className="rounded-xl border border-white/8 bg-white/[0.03] px-3 py-3">
-                <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">Automation</p>
-                <p className="mt-2 text-sm text-slate-100">{row.automationStatus || "Unknown"}</p>
+              <div className="rounded-xl border border-[var(--surface-border)] bg-[var(--surface-muted)] px-3 py-3">
+                <p className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted-foreground)]">Automation</p>
+                <p className="mt-2 text-sm text-[var(--foreground)]">{row.automationStatus || "Unknown"}</p>
               </div>
             </div>
             {row.releaseImpact ? (
-              <p className="mt-3 text-sm leading-7 text-slate-300">
-                <span className="font-semibold text-white">Release impact:</span> {row.releaseImpact}
+              <p className="mt-3 text-sm leading-7 text-[var(--muted-foreground)]">
+                <span className="font-semibold text-[var(--foreground)]">Release impact:</span> {row.releaseImpact}
               </p>
             ) : null}
           </div>
@@ -1227,12 +1671,12 @@ function ParagraphReport({ title, paragraphs }: { title: string; paragraphs: str
   if (!paragraphs.length) return null;
 
   return (
-    <div className="rounded-[28px] border border-white/8 bg-white/[0.035] p-5">
-      <h4 className="text-base font-semibold text-white">{title}</h4>
+    <div className="rounded-[28px] border border-[var(--surface-border)] bg-[var(--surface-muted)] p-5">
+      <h4 className="text-base font-semibold text-[var(--foreground)]">{title}</h4>
       <div className="mt-4 space-y-4">
         {paragraphs.map((paragraph, index) => (
-          <p key={`${title}-${index + 1}`} className="text-sm leading-7 text-slate-200">
-            <span className="mr-2 font-semibold text-white">{index + 1}.</span>
+          <p key={`${title}-${index + 1}`} className="text-sm leading-7 text-[var(--foreground)]">
+            <span className="mr-2 font-semibold text-[var(--foreground)]">{index + 1}.</span>
             {paragraph}
           </p>
         ))}
@@ -1267,33 +1711,33 @@ function ComparisonRows({
   }
 
   return (
-    <div className="rounded-[28px] border border-white/8 bg-white/[0.035] p-5">
-      <h4 className="text-base font-semibold text-white">{title}</h4>
+    <div className="rounded-[28px] border border-[var(--surface-border)] bg-[var(--surface-muted)] p-5">
+      <h4 className="text-base font-semibold text-[var(--foreground)]">{title}</h4>
       <div className="mt-4 space-y-4">
         {rows.map((row, index) => (
-          <div key={`${title}-${index + 1}-${row.sourceHeading}`} className="rounded-2xl border border-white/8 bg-slate-950/60 p-4">
-            <p className="text-sm font-semibold text-white">{index + 1}. Source Heading: {row.sourceHeading}</p>
-            <p className="mt-2 text-sm text-slate-200"><span className="font-semibold text-white">Live Heading:</span> {row.liveHeading}</p>
-            {row.status ? <p className="mt-2 text-sm text-cyan-100"><span className="font-semibold text-white">Match Result:</span> {formatStatus(row.status)}</p> : null}
+          <div key={`${title}-${index + 1}-${row.sourceHeading}`} className="rounded-2xl border border-[var(--surface-border)] bg-white p-4">
+            <p className="text-sm font-semibold text-[var(--foreground)]">{index + 1}. Source Heading: {row.sourceHeading}</p>
+            <p className="mt-2 text-sm text-[var(--foreground)]"><span className="font-semibold text-[var(--foreground)]">Live Heading:</span> {row.liveHeading}</p>
+            {row.status ? <p className="mt-2 text-sm text-teal-700"><span className="font-semibold text-[var(--foreground)]">Match Result:</span> {formatStatus(row.status)}</p> : null}
 
             {(row.sourceParagraphs?.length || row.liveParagraphs?.length)
               ? Array.from({ length: Math.max(row.sourceParagraphs?.length || 0, row.liveParagraphs?.length || 0) }).map((_, paragraphIndex) => (
                   <div key={`${row.sourceHeading}-paragraph-${paragraphIndex + 1}`} className="mt-3 space-y-2">
-                    <p className="text-sm leading-7 text-slate-200">
-                      <span className="font-semibold text-white">Source Paragraph {paragraphIndex + 1}:</span>{" "}
+                    <p className="text-sm leading-7 text-[var(--foreground)]">
+                      <span className="font-semibold text-[var(--foreground)]">Source Paragraph {paragraphIndex + 1}:</span>{" "}
                       {row.sourceParagraphs?.[paragraphIndex] || "No corresponding source paragraph extracted."}
                     </p>
-                    <p className="text-sm leading-7 text-slate-200">
-                      <span className="font-semibold text-white">Live Paragraph {paragraphIndex + 1}:</span>{" "}
+                    <p className="text-sm leading-7 text-[var(--foreground)]">
+                      <span className="font-semibold text-[var(--foreground)]">Live Paragraph {paragraphIndex + 1}:</span>{" "}
                       {row.liveParagraphs?.[paragraphIndex] || "No corresponding live paragraph found."}
                     </p>
                   </div>
                 ))
               : null}
 
-            {!row.sourceParagraphs?.length && row.sourceContent ? <p className="mt-3 text-sm leading-7 text-slate-200"><span className="font-semibold text-white">Source Paragraph 1:</span> {row.sourceContent}</p> : null}
-            {!row.liveParagraphs?.length && row.liveContent ? <p className="mt-3 text-sm leading-7 text-slate-200"><span className="font-semibold text-white">Live Paragraph 1:</span> {row.liveContent}</p> : null}
-            {row.missingInLive ? <p className="mt-3 text-sm leading-7 text-rose-100"><span className="font-semibold text-rose-200">Missing In Live:</span> {row.missingInLive}</p> : null}
+            {!row.sourceParagraphs?.length && row.sourceContent ? <p className="mt-3 text-sm leading-7 text-[var(--foreground)]"><span className="font-semibold text-[var(--foreground)]">Source Paragraph 1:</span> {row.sourceContent}</p> : null}
+            {!row.liveParagraphs?.length && row.liveContent ? <p className="mt-3 text-sm leading-7 text-[var(--foreground)]"><span className="font-semibold text-[var(--foreground)]">Live Paragraph 1:</span> {row.liveContent}</p> : null}
+            {row.missingInLive ? <p className="mt-3 text-sm leading-7 text-rose-700"><span className="font-semibold text-rose-700">Missing In Live:</span> {row.missingInLive}</p> : null}
           </div>
         ))}
       </div>
@@ -1318,39 +1762,39 @@ function BulkUrlPages({
   if (!pages.length) return null;
 
   return (
-    <div className="rounded-[28px] border border-white/8 bg-white/[0.035] p-5">
-      <h4 className="text-base font-semibold text-white">Page-by-page QA review</h4>
+    <div className="rounded-[28px] border border-[var(--surface-border)] bg-[var(--surface-muted)] p-5">
+      <h4 className="text-base font-semibold text-[var(--foreground)]">Page-by-page QA review</h4>
       <div className="mt-4 space-y-4">
         {pages.map((page) => (
-          <div key={page.url} className="rounded-2xl border border-white/8 bg-slate-950/60 p-4">
+          <div key={page.url} className="rounded-2xl border border-[var(--surface-border)] bg-white p-4">
             <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
               <div>
-                <p className="text-sm font-semibold text-white">{page.pageTitle || page.url}</p>
-                <p className="mt-1 text-xs text-slate-400">{page.url}</p>
+                <p className="text-sm font-semibold text-[var(--foreground)]">{page.pageTitle || page.url}</p>
+                <p className="mt-1 text-xs text-[var(--muted-foreground)]">{page.url}</p>
               </div>
               <div className="flex gap-2">
-                {typeof page.matchScore === "number" ? <div className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-xs font-semibold text-cyan-100">Score {page.matchScore}%</div> : null}
-                {page.responsiveStatus ? <div className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-slate-200">{page.responsiveStatus}</div> : null}
+                {typeof page.matchScore === "number" ? <div className="rounded-full border border-teal-200 bg-teal-50 px-3 py-1 text-xs font-semibold text-teal-700">Score {page.matchScore}%</div> : null}
+                {page.responsiveStatus ? <div className="rounded-full border border-[var(--surface-border)] bg-[var(--surface-muted)] px-3 py-1 text-xs font-semibold text-[var(--foreground)]">{page.responsiveStatus}</div> : null}
               </div>
             </div>
-            {page.alert ? <p className="mt-3 text-sm leading-7 text-slate-200"><span className="font-semibold text-white">Main finding:</span> {page.alert}</p> : null}
-            {page.testedFor?.length ? <p className="mt-3 text-sm leading-7 text-slate-200"><span className="font-semibold text-white">Tested for:</span> {page.testedFor.join(", ")}</p> : null}
+            {page.alert ? <p className="mt-3 text-sm leading-7 text-[var(--foreground)]"><span className="font-semibold text-[var(--foreground)]">Main finding:</span> {page.alert}</p> : null}
+            {page.testedFor?.length ? <p className="mt-3 text-sm leading-7 text-[var(--foreground)]"><span className="font-semibold text-[var(--foreground)]">Tested for:</span> {page.testedFor.join(", ")}</p> : null}
             {page.keyObservations?.length ? (
               <div className="mt-3">
-                <p className="text-sm font-semibold text-white">Key observations</p>
+                <p className="text-sm font-semibold text-[var(--foreground)]">Key observations</p>
                 <div className="mt-2 space-y-2">
                   {page.keyObservations.map((item) => (
-                    <p key={`${page.url}-${item}`} className="text-sm leading-7 text-slate-200">{item}</p>
+                    <p key={`${page.url}-${item}`} className="text-sm leading-7 text-[var(--foreground)]">{item}</p>
                   ))}
                 </div>
               </div>
             ) : null}
             {page.issues?.length ? (
               <div className="mt-3">
-                <p className="text-sm font-semibold text-rose-200">Issues found</p>
+                <p className="text-sm font-semibold text-rose-700">Issues found</p>
                 <div className="mt-2 space-y-2">
                   {page.issues.map((item) => (
-                    <p key={`${page.url}-issue-${item}`} className="text-sm leading-7 text-rose-100">{item}</p>
+                    <p key={`${page.url}-issue-${item}`} className="text-sm leading-7 text-rose-700">{item}</p>
                   ))}
                 </div>
               </div>
@@ -1597,14 +2041,14 @@ function FriendlyResult({
 }) {
   if (!result || typeof result !== "object") {
     return (
-      <div className="rounded-[32px] border border-dashed border-white/10 bg-slate-950/45 p-6">
+      <div className="rounded-[32px] border border-dashed border-[var(--surface-border)] bg-[var(--surface-muted)] p-6">
         <div className="flex items-center gap-3">
-          <div className="rounded-2xl bg-cyan-300/12 p-3 text-cyan-100">
+          <div className="rounded-2xl bg-teal-50 p-3 text-teal-700">
             <WandSparkles className="h-5 w-5" />
           </div>
           <div>
-            <h4 className="text-lg font-semibold text-white">Your {label.toLowerCase()} output will appear here</h4>
-            <p className="mt-1 text-sm text-slate-300">We surface structured findings, summaries, and next actions instead of a generic text box.</p>
+            <h4 className="text-lg font-semibold text-[var(--foreground)]">Your {label.toLowerCase()} output will appear here</h4>
+            <p className="mt-1 text-sm text-[var(--muted-foreground)]">We surface structured findings, summaries, and next actions instead of a generic text box.</p>
           </div>
         </div>
       </div>
@@ -1631,6 +2075,11 @@ function FriendlyResult({
   const automationPack = toTextList(data.automationPack);
   const businessUatPack = toTextList(data.businessUatPack);
   const automationCandidates = toTextList(data.automationCandidates);
+  const generatedTestCases = Array.isArray(data.testCases)
+    ? (data.testCases as Array<Record<string, unknown>>).filter(
+        (item) => Boolean(item && typeof item === "object" && "scenario" in item && "expectedResult" in item),
+      )
+    : [];
   const testStrategy = toTextList(data.testStrategy);
   const governanceNotes = toTextList(data.governanceNotes);
   const moduleCoverageTargets = toTextList(data.moduleCoverageTargets);
@@ -1727,12 +2176,18 @@ function FriendlyResult({
           Boolean(item && typeof item === "object"),
       )
     : [];
+  const executedCaseRows = Array.isArray(data.testCases)
+    ? (data.testCases as Array<Record<string, unknown>>).filter(
+        (item) => Boolean(item && typeof item === "object" && ("status" in item || "evidenceUrl" in item || "executedSteps" in item)),
+      )
+    : [];
   const isWebsiteQaReport =
     "missingContent" in data ||
     "contentDrift" in data ||
     "pixelLevelDifferences" in data ||
     "responsiveDeviations" in data ||
     "designTokenValidation" in data;
+  const isExecutionReport = "executionBreakdown" in data || executedCaseRows.length > 0;
   const isReleaseRiskReport =
     "goNoGoRecommendation" in data ||
     "blockers" in data ||
@@ -1744,13 +2199,13 @@ function FriendlyResult({
   return (
     <div className="space-y-5">
       <div className="grid gap-4 md:grid-cols-3">
-        {score !== null ? <div className="rounded-[28px] border border-cyan-300/15 bg-cyan-300/10 p-5"><p className="text-xs uppercase tracking-[0.18em] text-cyan-100">Overall score</p><p className="mt-3 text-3xl font-semibold text-white">{score}%</p></div> : null}
-        {riskLevel ? <div className="rounded-[28px] border border-white/8 bg-white/[0.035] p-5"><p className="text-xs uppercase tracking-[0.18em] text-slate-300">Risk level</p><p className="mt-3 text-2xl font-semibold text-white">{riskLevel}</p></div> : null}
-        {passRate ? <div className="rounded-[28px] border border-white/8 bg-white/[0.035] p-5"><p className="text-xs uppercase tracking-[0.18em] text-slate-300">Pass rate</p><p className="mt-3 text-2xl font-semibold text-white">{passRate}</p></div> : null}
+        {score !== null ? <div className="rounded-[28px] border border-teal-200 bg-teal-50 p-5"><p className="text-xs uppercase tracking-[0.18em] text-teal-700">Overall score</p><p className="mt-3 text-3xl font-semibold text-[var(--foreground)]">{score}%</p></div> : null}
+        {riskLevel ? <div className="rounded-[28px] border border-[var(--surface-border)] bg-[var(--surface-muted)] p-5"><p className="text-xs uppercase tracking-[0.18em] text-[var(--muted-foreground)]">Risk level</p><p className="mt-3 text-2xl font-semibold text-[var(--foreground)]">{riskLevel}</p></div> : null}
+        {passRate ? <div className="rounded-[28px] border border-[var(--surface-border)] bg-[var(--surface-muted)] p-5"><p className="text-xs uppercase tracking-[0.18em] text-[var(--muted-foreground)]">Pass rate</p><p className="mt-3 text-2xl font-semibold text-[var(--foreground)]">{passRate}</p></div> : null}
       </div>
       {goNoGoRecommendation ? (
         <div className={`rounded-[28px] border p-5 ${goNoGoTone(goNoGoRecommendation)}`}>
-          <p className="text-xs uppercase tracking-[0.18em] text-slate-300">Go / No-Go</p>
+          <p className="text-xs uppercase tracking-[0.18em] text-[var(--muted-foreground)]">Go / No-Go</p>
           <p className="mt-3 text-2xl font-semibold">{goNoGoRecommendation}</p>
         </div>
       ) : null}
@@ -1781,23 +2236,24 @@ function FriendlyResult({
       ) : null}
       {comparisonConfidence || comparisonStatus ? (
         <div className="grid gap-4 md:grid-cols-2">
-          {comparisonConfidence ? <div className="rounded-[28px] border border-white/8 bg-white/[0.035] p-5"><p className="text-xs uppercase tracking-[0.18em] text-slate-300">Comparison confidence</p><p className="mt-3 text-2xl font-semibold text-white">{comparisonConfidence}</p></div> : null}
-          {comparisonStatus ? <div className="rounded-[28px] border border-white/8 bg-white/[0.035] p-5"><p className="text-xs uppercase tracking-[0.18em] text-slate-300">Comparison status</p><p className="mt-3 text-2xl font-semibold text-white">{comparisonStatus}</p></div> : null}
+          {comparisonConfidence ? <div className="rounded-[28px] border border-[var(--surface-border)] bg-[var(--surface-muted)] p-5"><p className="text-xs uppercase tracking-[0.18em] text-[var(--muted-foreground)]">Comparison confidence</p><p className="mt-3 text-2xl font-semibold text-[var(--foreground)]">{comparisonConfidence}</p></div> : null}
+          {comparisonStatus ? <div className="rounded-[28px] border border-[var(--surface-border)] bg-[var(--surface-muted)] p-5"><p className="text-xs uppercase tracking-[0.18em] text-[var(--muted-foreground)]">Comparison status</p><p className="mt-3 text-2xl font-semibold text-[var(--foreground)]">{comparisonStatus}</p></div> : null}
         </div>
       ) : null}
       {isRejectedComparison ? (
-        <div className="rounded-[28px] border border-amber-300/20 bg-amber-400/10 p-5">
-          <h4 className="text-base font-semibold text-amber-100">
+        <div className="rounded-[28px] border border-amber-200 bg-amber-50 p-5">
+          <h4 className="text-base font-semibold text-amber-700">
             {isExtractionFailure ? "Live page extraction failed" : "Source rejected for detailed comparison"}
           </h4>
-          <p className="mt-2 text-sm leading-7 text-amber-50/90">
+          <p className="mt-2 text-sm leading-7 text-amber-700">
             {isExtractionFailure
               ? "The app could not extract enough reliable text from the target URL, so it intentionally suppressed the detailed comparison instead of generating a misleading report."
               : "This source document does not appear related enough to the target URL. The app has intentionally suppressed detailed section-by-section findings to avoid a misleading report."}
           </p>
         </div>
       ) : null}
-      {summary ? <div className="rounded-[28px] border border-white/8 bg-white/[0.035] p-5"><h4 className="text-base font-semibold text-white">Executive summary</h4><p className="mt-3 text-sm leading-7 text-slate-200">{summary}</p></div> : null}
+      {summary ? <div className="rounded-[28px] border border-[var(--surface-border)] bg-[var(--surface-muted)] p-5"><h4 className="text-base font-semibold text-[var(--foreground)]">Executive summary</h4><p className="mt-3 text-sm leading-7 text-[var(--foreground)]">{summary}</p></div> : null}
+      {generatedTestCases.length ? <TestCasesTable cases={generatedTestCases} /> : null}
       {(smokeSuite.length || regressionSuite.length || uatSuite.length || uatSignoffCriteria.length || businessOwnerScenarios.length || qaLeadPack.length || automationPack.length || businessUatPack.length || automationCandidates.length) ? (
         <div className="grid gap-4 xl:grid-cols-2">
           <ResultBlock title="Smoke Suite" items={smokeSuite} />
@@ -1830,6 +2286,13 @@ function FriendlyResult({
           <ResultBlock title="Coverage Gaps" items={coverageGaps} />
         </div>
       ) : null}
+      {isExecutionReport ? <ExecutedCasesBlock cases={executedCaseRows} /> : null}
+      {isExecutionReport ? (
+        <div className="flex flex-wrap gap-3">
+          <Button variant="secondary" onClick={() => exportExecutionWorkbook(data, currentWorkbookBaseName)}>Export Execution Report</Button>
+          <Button variant="secondary" onClick={() => exportJsonFile(result, "qa-copilot-executed-run.json")}>Export JSON</Button>
+        </div>
+      ) : null}
       <TraceabilityMatrix rows={traceabilityRows} />
       <BulkUrlPages pages={bulkPages} />
       <ComparisonRows title="Heading comparison" rows={headingComparisons} />
@@ -1837,7 +2300,7 @@ function FriendlyResult({
       {isWebsiteQaReport ? <ParagraphReport title="Detailed comparison report" paragraphs={detailedComparisonParagraphs} /> : null}
       {isReleaseRiskReport ? (
         <div className="flex flex-wrap gap-3">
-          <Button variant="secondary" onClick={() => exportReleaseRiskWorkbook(data, "qa-copilot-release-risk-pack")}>Export Release Risk Pack</Button>
+          <Button variant="secondary" onClick={() => exportReleaseRiskWorkbook(data, currentWorkbookBaseName)}>Export Release Risk Pack</Button>
           <Button variant="secondary" onClick={() => exportReleaseRiskPdf(data)}>Export Release Risk PDF</Button>
           <Button variant="secondary" onClick={() => exportJsonFile(result, `qa-copilot-${label.toLowerCase().replace(/\s+/g, "-")}.json`)}>Export JSON</Button>
         </div>
@@ -1853,9 +2316,9 @@ function FriendlyResult({
         <ResultBlock title="Recommended next steps" items={nextSteps} />
       </div>
       <ResultBlock title="Needs attention" items={attention} />
-      <details className="rounded-[28px] border border-white/8 bg-slate-950/55 p-5 text-sm text-slate-300">
-        <summary className="cursor-pointer font-medium text-white">Show raw technical output</summary>
-        <pre className="mt-4 overflow-x-auto whitespace-pre-wrap text-sm leading-7 text-slate-100">{JSON.stringify(result, null, 2)}</pre>
+      <details className="rounded-[28px] border border-[var(--surface-border)] bg-[var(--surface-muted)] p-5 text-sm text-[var(--muted-foreground)]">
+        <summary className="cursor-pointer font-medium text-[var(--foreground)]">Show raw technical output</summary>
+        <pre className="mt-4 overflow-x-auto whitespace-pre-wrap text-sm leading-7 text-[var(--foreground)]">{JSON.stringify(result, null, 2)}</pre>
       </details>
     </div>
   );
@@ -1865,6 +2328,8 @@ export function UserConsole() {
   const router = useRouter();
   const [section, setSection] = useState<SectionId>("overview");
   const [overview, setOverview] = useState<OverviewPayload | null>(null);
+  const [overviewError, setOverviewError] = useState("");
+  const [recentActivityOpen, setRecentActivityOpen] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [projectName, setProjectName] = useState("");
   const [projectDescription, setProjectDescription] = useState("");
@@ -1874,9 +2339,13 @@ export function UserConsole() {
   const [loading, setLoading] = useState(false);
   const [requirementText, setRequirementText] = useState("");
   const [requirementFile, setRequirementFile] = useState<File | null>(null);
+  const [executionTargetUrl, setExecutionTargetUrl] = useState("http://localhost:3000");
+  const [executionText, setExecutionText] = useState("");
+  const [executionFile, setExecutionFile] = useState<File | null>(null);
   const [automationText, setAutomationText] = useState("");
   const [automationFramework, setAutomationFramework] = useState("playwright");
   const [bugInput, setBugInput] = useState("");
+  const [bugFile, setBugFile] = useState<File | null>(null);
   const [testDataPrompt, setTestDataPrompt] = useState("");
   const [testDataFile, setTestDataFile] = useState<File | null>(null);
   const [recordCount, setRecordCount] = useState("5");
@@ -1885,6 +2354,19 @@ export function UserConsole() {
   const [apiSpecText, setApiSpecText] = useState("");
   const [apiFile, setApiFile] = useState<File | null>(null);
   const [releaseRiskText, setReleaseRiskText] = useState("");
+  const [releaseName, setReleaseName] = useState("");
+  const [releaseEnvironment, setReleaseEnvironment] = useState("Staging");
+  const [releaseScope, setReleaseScope] = useState("");
+  const [releasePassed, setReleasePassed] = useState("");
+  const [releaseFailed, setReleaseFailed] = useState("");
+  const [releaseBlocked, setReleaseBlocked] = useState("");
+  const [releaseCriticalDefects, setReleaseCriticalDefects] = useState("");
+  const [releaseBlockedAreas, setReleaseBlockedAreas] = useState("");
+  const [releaseCoverageGaps, setReleaseCoverageGaps] = useState("");
+  const [releaseBusinessRisk, setReleaseBusinessRisk] = useState("");
+  const [releaseTarget, setReleaseTarget] = useState("");
+  const [releaseRiskUrl, setReleaseRiskUrl] = useState("");
+  const [releaseRiskFile, setReleaseRiskFile] = useState<File | null>(null);
   const [publishedUrl, setPublishedUrl] = useState("");
   const [referenceType, setReferenceType] = useState("pdf");
   const [referenceContent, setReferenceContent] = useState("");
@@ -1903,51 +2385,79 @@ export function UserConsole() {
 
   const currentSection = useMemo(() => navGroups.flatMap((group) => group.items).find((item) => item.id === section) || navGroups[0].items[0], [section]);
   const selectedProject = useMemo(() => overview?.projects.find((project) => project.id === selectedProjectId) || overview?.projects[0] || null, [overview, selectedProjectId]);
+  const currentWorkbookBaseName = useMemo(
+    () => buildProjectQaFilename(selectedProject?.name, currentSection.label),
+    [selectedProject?.name, currentSection.label],
+  );
   const safeCreditsLeft = Math.max(0, overview?.user.creditsBalance ?? 0);
   const planCredits = overview?.user.subscription?.plan.creditsPerMonth || 250;
   const creditsUsed = overview?.usageSummary.creditsUsed ?? 0;
   const actionsCount = overview?.usageSummary.actionsCount ?? 0;
   const usagePercent = Math.min(100, Math.round((creditsUsed / Math.max(planCredits, 1)) * 100));
   const recentArtifacts = selectedProject?.artifacts || [];
+  const recentHistory = useMemo<ActivityTimelineItem[]>(() => {
+    const artifactItems: ActivityTimelineItem[] = (overview?.recentArtifacts || []).map((artifact) => ({
+      id: `artifact-${artifact.id}`,
+      kind: "artifact",
+      createdAt: artifact.createdAt,
+      title: artifact.title,
+      subtitle: `${artifact.project.name} - ${formatArtifactTypeLabel(artifact.type)}`,
+      creditsUsed: overview?.creditCatalog?.[artifact.type] ?? null,
+      artifact,
+    }));
+
+    const usageItems: ActivityTimelineItem[] = (overview?.recentActivity || []).map((activity) => {
+      const copy = getUsageActivityCopy(activity.action, activity.creditsUsed);
+      return {
+        id: `usage-${activity.id}`,
+        kind: "usage",
+        createdAt: activity.createdAt,
+        title: copy.title,
+        subtitle: copy.subtitle,
+        detail: copy.detail,
+        creditsUsed: activity.creditsUsed,
+      };
+    });
+
+    return [...artifactItems, ...usageItems]
+      .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime())
+      .slice(0, 8);
+  }, [overview]);
   const exportedTestCases = useMemo(() => {
     if (result && typeof result === "object" && "testCases" in result && Array.isArray((result as { testCases: unknown[] }).testCases)) {
-      return (result as { testCases: Array<Record<string, string>> }).testCases.map((row) => ({
-        "Test Case ID": row.id,
-        "Requirement ID": row.requirementId,
-        Module: row.module,
-        Priority: row.priority,
-        Severity: row.severity,
-        Owner: row.owner,
-        Environment: row.environment,
-        "Automation Status": row.automationStatus,
-        Dependencies: Array.isArray(row.dependencies) ? row.dependencies.join(" | ") : String(row.dependencies || ""),
-        Objective: row.objective,
-        Scenario: row.scenario,
-        Preconditions: Array.isArray(row.preconditions) ? row.preconditions.join(" | ") : String(row.preconditions || ""),
-        "Test Data": Array.isArray(row.testData) ? row.testData.join(" | ") : String(row.testData || ""),
-        Steps: Array.isArray(row.steps) ? row.steps.join(" | ") : String(row.steps || ""),
-        "Expected Result": row.expectedResult,
-        "Negative Coverage": Array.isArray(row.negativeCoverage) ? row.negativeCoverage.join(" | ") : String(row.negativeCoverage || ""),
-        "Edge Coverage": Array.isArray(row.edgeCoverage) ? row.edgeCoverage.join(" | ") : String(row.edgeCoverage || ""),
-        "Automation Candidate": row.automationCandidate,
-        Postconditions: Array.isArray(row.postconditions) ? row.postconditions.join(" | ") : String(row.postconditions || ""),
-        "Release Impact": row.releaseImpact,
-        "Execution Notes": row.executionNotes,
-        Risk: row.risk,
-        Tags: Array.isArray(row.tags) ? row.tags.join(", ") : String(row.tags || ""),
-        Type: row.type,
-      }));
+      return (result as { testCases: Array<Record<string, unknown>> }).testCases.map((row) => toSimpleTestCaseRow(row));
     }
     return [];
   }, [result]);
 
   async function loadOverview(preferredProjectId?: string) {
+    const token = getToken();
+    if (!token) {
+      router.replace("/login");
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 12000);
+
     try {
-      const data = await apiRequest<OverviewPayload>("/dashboard/overview");
+      setOverviewError("");
+      const data = await apiRequest<OverviewPayload>("/dashboard/overview", { signal: controller.signal });
       setOverview(data);
       setSelectedProjectId((current) => preferredProjectId || current || data.projects[0]?.id || "");
-    } catch {
-      router.push("/login");
+    } catch (error) {
+      const rawMessage = error instanceof Error ? error.message : "Unable to load your workspace.";
+      const authFailure =
+        /authorization token|unauthorized|forbidden|approval|jwt|token/i.test(rawMessage);
+
+      if (authFailure) {
+        router.replace("/login");
+        return;
+      }
+
+      setOverviewError(rawMessage);
+    } finally {
+      window.clearTimeout(timeout);
     }
   }
 
@@ -2022,6 +2532,76 @@ export function UserConsole() {
     }
   }
 
+  async function downloadRecentArtifact(
+    artifact: OverviewPayload["recentArtifacts"][number],
+    format: "primary" | "json" | "pdf" = "primary",
+  ) {
+    const data = getArtifactRecord(artifact.outputJson);
+    const filename = createArtifactFilename(artifact);
+
+    if (format === "json") {
+      exportJsonFile(artifact.outputJson ?? { outputText: artifact.outputText || "" }, `${filename}.json`);
+      return;
+    }
+
+    if (!data) {
+      setMessage("This saved activity does not include a structured report to download yet.");
+      return;
+    }
+
+    try {
+      if (format === "pdf") {
+        await downloadAuditPdf(data, artifact.title, {
+          sourceName: artifact.sourceName || undefined,
+          referenceType: formatArtifactTypeLabel(artifact.type),
+        });
+        return;
+      }
+
+      switch (artifact.type) {
+        case "TEST_CASES":
+          await exportQaPackWorkbook(data, filename);
+          return;
+        case "TEST_REPORT":
+          await exportExecutionWorkbook(data, filename);
+          return;
+        case "RELEASE_RISK":
+          await exportReleaseRiskWorkbook(data, filename);
+          return;
+        default:
+          exportJsonFile(data, `${filename}.json`);
+      }
+    } catch (error) {
+      const rawMessage = error instanceof Error ? error.message : "Report download failed.";
+      setMessage(toUserFacingErrorMessage(rawMessage, overview?.user.role));
+    }
+  }
+
+  function reopenRecentArtifact(artifact: OverviewPayload["recentArtifacts"][number]) {
+    const data = getArtifactRecord(artifact.outputJson);
+    if (!data) {
+      setMessage("This saved activity can be expanded, but it does not include a reusable structured report.");
+      return;
+    }
+
+    const sectionMap: Partial<Record<string, SectionId>> = {
+      TEST_CASES: "test-cases",
+      AUTOMATION_SCRIPT: "automation",
+      BUG_ANALYSIS: "bug",
+      TEST_DATA: "test-data",
+      TEST_REPORT: "test-report",
+      API_TESTS: "api-tests",
+      RELEASE_RISK: "release-risk",
+      CONTENT_MATCH: "content-match",
+      DESIGN_MATCH: "design-match",
+      BULK_URL_QA: "bulk-url-qa",
+    };
+
+    setResult(data);
+    setSection(sectionMap[artifact.type] || "overview");
+    setMessage(`Loaded "${artifact.title}" from recent activities.`);
+  }
+
   const reportContext: ReportContext = useMemo(() => {
     if (section === "content-match") {
       return {
@@ -2053,6 +2633,34 @@ export function UserConsole() {
 
     return {};
   }, [section, publishedUrl, contentMatchFile, referenceType, liveDesignUrl, designMatchFile, bulkUrls]);
+
+  function buildReleaseRiskInput() {
+    const sections = [
+      releaseName.trim() ? `Release: ${releaseName.trim()}` : "",
+      releaseEnvironment.trim() ? `Environment: ${releaseEnvironment.trim()}` : "",
+      releaseScope.trim() ? `Scope: ${releaseScope.trim()}` : "",
+      releaseTarget.trim() ? `Release target: ${releaseTarget.trim()}` : "",
+      releaseRiskUrl.trim() ? `Staging URL: ${releaseRiskUrl.trim()}` : "",
+      releasePassed.trim() || releaseFailed.trim() || releaseBlocked.trim()
+        ? [
+            "Test execution summary:",
+            releasePassed.trim() ? `- Passed: ${releasePassed.trim()}` : "",
+            releaseFailed.trim() ? `- Failed: ${releaseFailed.trim()}` : "",
+            releaseBlocked.trim() ? `- Blocked: ${releaseBlocked.trim()}` : "",
+          ]
+            .filter(Boolean)
+            .join("\n")
+        : "",
+      releaseCriticalDefects.trim() ? `Critical defects:\n${releaseCriticalDefects.trim()}` : "",
+      releaseBlockedAreas.trim() ? `Blocked areas:\n${releaseBlockedAreas.trim()}` : "",
+      releaseCoverageGaps.trim() ? `Coverage gaps:\n${releaseCoverageGaps.trim()}` : "",
+      releaseBusinessRisk.trim() ? `Business risk:\n${releaseBusinessRisk.trim()}` : "",
+      releaseRiskText.trim() ? `Additional context:\n${releaseRiskText.trim()}` : "",
+      "Need:\nProvide release readiness score, risk level, go/no-go recommendation, blockers, residual risks, rollback triggers, and stakeholder actions.",
+    ];
+
+    return sections.filter(Boolean).join("\n\n");
+  }
 
   function renderProjectWorkspace() {
     return (
@@ -2137,7 +2745,7 @@ export function UserConsole() {
                 <div className="rounded-full border border-[var(--surface-border)] bg-[var(--surface-muted)] px-4 py-2 text-sm text-[var(--foreground)]">
                   {overviewData.user.subscription?.plan.name || "Starter"} plan
                 </div>
-                <div className="rounded-full border border-emerald-400/20 bg-emerald-500/10 px-4 py-2 text-sm capitalize text-emerald-100">
+                <div className="rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm capitalize text-emerald-700">
                   {overviewData.user.subscription?.status || "active"}
                 </div>
               </div>
@@ -2150,22 +2758,129 @@ export function UserConsole() {
           </div>
 
           <Card className="p-6">
-            <p className="text-[11px] uppercase tracking-[0.22em] text-[var(--muted-foreground)]">Recent activity</p>
-            <div className="mt-5 space-y-3">
-              {(overviewData.recentActivity || []).slice(0, 5).map((activity) => (
-                <div key={activity.id} className="rounded-[18px] border border-[var(--surface-border)] bg-[var(--surface-muted)] px-4 py-4">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="font-medium text-[var(--foreground)]">{activity.action}</p>
-                      <p className="mt-1 text-sm text-[var(--muted-foreground)]">{formatDate(activity.createdAt)}</p>
-                    </div>
-                    <p className="text-sm font-medium text-[var(--foreground)]">{activity.creditsUsed} credits</p>
-                  </div>
+            <button
+              type="button"
+              onClick={() => setRecentActivityOpen((current) => !current)}
+              className="flex w-full flex-wrap items-center justify-between gap-3 text-left"
+            >
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.22em] text-[var(--muted-foreground)]">Recent activity</p>
+                <p className="mt-2 text-sm text-[var(--muted-foreground)]">
+                  Open this section whenever you want to review previous runs, credits used, and saved QA outputs.
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="inline-flex items-center gap-2 rounded-full border border-[var(--surface-border)] bg-[var(--surface-muted)] px-3 py-2 text-xs font-medium uppercase tracking-[0.16em] text-[var(--muted-foreground)]">
+                  <History className="h-3.5 w-3.5" />
+                  {recentHistory.length} items
                 </div>
-              ))}
-              {!overviewData.recentActivity.length ? <div className="rounded-[18px] border border-dashed border-[var(--surface-border)] bg-[var(--surface-muted)] px-4 py-6 text-sm text-[var(--muted-foreground)]">No recent activity yet.</div> : null}
-            </div>
+                <span className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--surface-border)] bg-[var(--surface-muted)] text-[var(--foreground)]">
+                  <ChevronDown className={`h-4 w-4 transition ${recentActivityOpen ? "rotate-180" : ""}`} />
+                </span>
+              </div>
+            </button>
+            {recentActivityOpen ? (
+              <div className="mt-5 space-y-3">
+                {recentHistory.map((item) => {
+                if (item.kind === "artifact") {
+                  const artifact = item.artifact;
+                  const hasStructuredReport = Boolean(getArtifactRecord(artifact.outputJson));
+                  const preview = artifact.outputText?.trim();
+
+                  return (
+                    <details key={item.id} className="group rounded-[18px] border border-[var(--surface-border)] bg-[var(--surface-muted)]">
+                      <summary className="flex cursor-pointer list-none items-start justify-between gap-4 px-4 py-4">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="font-medium text-[var(--foreground)]">{item.title}</p>
+                            <span className="rounded-full border border-teal-200 bg-teal-50 px-2.5 py-1 text-[10px] uppercase tracking-[0.16em] text-teal-700">
+                              {formatArtifactTypeLabel(artifact.type)}
+                            </span>
+                            {typeof item.creditsUsed === "number" ? (
+                              <span className="rounded-full border border-[var(--surface-border)] bg-white px-2.5 py-1 text-[10px] uppercase tracking-[0.16em] text-[var(--muted-foreground)]">
+                                {item.creditsUsed} credits
+                              </span>
+                            ) : null}
+                          </div>
+                          <p className="mt-1 text-sm text-[var(--muted-foreground)]">
+                            {item.subtitle} - {formatDate(item.createdAt)}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.16em] text-[var(--muted-foreground)] transition group-open:text-teal-700">
+                          <span>{hasStructuredReport ? "View result" : "Preview only"}</span>
+                          <ChevronDown className="h-4 w-4 transition group-open:rotate-180" />
+                        </div>
+                      </summary>
+
+                      <div className="border-t border-[var(--surface-border)] px-4 py-4">
+                        <div className="grid gap-3 md:grid-cols-2">
+                          <div className="rounded-2xl border border-[var(--surface-border)] bg-white px-4 py-3">
+                            <p className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted-foreground)]">Source</p>
+                            <p className="mt-2 text-sm text-[var(--foreground)]">{artifact.sourceName || "Generated inside QA Copilot"}</p>
+                          </div>
+                          <div className="rounded-2xl border border-[var(--surface-border)] bg-white px-4 py-3">
+                            <p className="text-[11px] uppercase tracking-[0.18em] text-[var(--muted-foreground)]">Availability</p>
+                            <p className="mt-2 text-sm text-[var(--foreground)]">
+                              {hasStructuredReport ? "Structured report ready for export" : "Saved preview only"}
+                            </p>
+                          </div>
+                        </div>
+
+                        {preview ? (
+                          <div className="mt-3 rounded-2xl border border-[var(--surface-border)] bg-white px-4 py-3 text-sm leading-7 text-[var(--muted-foreground)]">
+                            {preview.length > 260 ? `${preview.slice(0, 260).trim()}...` : preview}
+                          </div>
+                        ) : null}
+
+                        <div className="mt-4 flex flex-wrap gap-3">
+                          <Button variant="secondary" onClick={() => reopenRecentArtifact(artifact)} disabled={!hasStructuredReport}>
+                            Open again
+                          </Button>
+                          <Button onClick={() => void downloadRecentArtifact(artifact)} disabled={!hasStructuredReport}>
+                            <Download className="h-4 w-4" />
+                            Download report
+                          </Button>
+                          <Button variant="secondary" onClick={() => void downloadRecentArtifact(artifact, "pdf")} disabled={!hasStructuredReport}>
+                            Download PDF
+                          </Button>
+                          <Button variant="secondary" onClick={() => void downloadRecentArtifact(artifact, "json")}>
+                            Download JSON
+                          </Button>
+                        </div>
+                      </div>
+                    </details>
+                  );
+                }
+
+                  return (
+                    <details key={item.id} className="group rounded-[18px] border border-[var(--surface-border)] bg-[var(--surface-muted)]">
+                      <summary className="flex cursor-pointer list-none items-start justify-between gap-4 px-4 py-4">
+                        <div>
+                          <p className="font-medium text-[var(--foreground)]">{item.title}</p>
+                          <p className="mt-1 text-sm text-[var(--muted-foreground)]">
+                            {item.subtitle} - {formatDate(item.createdAt)}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm font-medium text-[var(--foreground)]">{item.creditsUsed} credits</span>
+                          <ChevronDown className="h-4 w-4 text-[var(--muted-foreground)] transition group-open:rotate-180" />
+                        </div>
+                      </summary>
+
+                      <div className="border-t border-[var(--surface-border)] px-4 py-4">
+                        <div className="rounded-2xl border border-[var(--surface-border)] bg-white px-4 py-3 text-sm leading-7 text-[var(--muted-foreground)]">
+                          {item.detail}
+                        </div>
+                      </div>
+                    </details>
+                  );
+                })}
+
+                {!recentHistory.length ? <div className="rounded-[18px] border border-dashed border-[var(--surface-border)] bg-[var(--surface-muted)] px-4 py-6 text-sm text-[var(--muted-foreground)]">No recent activity yet.</div> : null}
+              </div>
+            ) : null}
           </Card>
+
           {renderProjectWorkspace()}
         </div>
       );
@@ -2176,36 +2891,108 @@ export function UserConsole() {
         <Card className="space-y-5">
           <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
             <div className="space-y-4">
-              <div className="rounded-[28px] border border-white/8 bg-white/[0.03] p-4">
-                <p className="text-sm font-medium text-white">Requirement source</p>
-                <Input className="mt-4" type="file" accept=".pdf,.docx,.txt" onChange={(event) => setRequirementFile(event.target.files?.[0] || null)} />
-                {requirementFile ? <p className="mt-3 text-sm text-cyan-100">Attached: {requirementFile.name}</p> : null}
+              <div className="rounded-[28px] border border-[var(--surface-border)] bg-[var(--surface-muted)] p-4">
+                <p className="text-sm font-medium text-[var(--foreground)]">Requirement source</p>
+                <Input className="mt-4" type="file" accept=".pdf,.docx,.txt,.md,.json,.csv,.xlsx,.xls" onChange={(event) => setRequirementFile(event.target.files?.[0] || null)} />
+                {requirementFile ? <p className="mt-3 text-sm text-teal-700">Attached: {requirementFile.name}</p> : null}
               </div>
-              <div className="rounded-[28px] border border-white/8 bg-white/[0.03] p-4">
-                <p className="text-sm font-medium text-white">Requirement details</p>
+              <div className="rounded-[28px] border border-[var(--surface-border)] bg-[var(--surface-muted)] p-4">
+                <p className="text-sm font-medium text-[var(--foreground)]">Requirement details</p>
                 <Textarea className="mt-4 min-h-52" value={requirementText} onChange={(event) => setRequirementText(event.target.value)} placeholder="Describe the feature, acceptance criteria, business rules, user roles, and edge cases you want covered." />
               </div>
             </div>
             <div className="space-y-4">
-              <div className="rounded-[28px] border border-white/8 bg-white/[0.03] p-5">
-                <p className="text-xs uppercase tracking-[0.18em] text-cyan-100/80">Readiness</p>
+              <div className="rounded-[28px] border border-[var(--surface-border)] bg-[var(--surface-muted)] p-5">
+                <p className="text-xs uppercase tracking-[0.18em] text-teal-600">Readiness</p>
                 <div className="mt-4 space-y-3">
-                  <div className="rounded-2xl border border-white/8 bg-slate-950/60 px-4 py-3 text-sm text-slate-200">Project: {selectedProject?.name || "No project selected"}</div>
-                  <div className="rounded-2xl border border-white/8 bg-slate-950/60 px-4 py-3 text-sm text-slate-200">Requirement text: {requirementText.trim() ? "Ready" : "Missing"}</div>
-                  <div className="rounded-2xl border border-white/8 bg-slate-950/60 px-4 py-3 text-sm text-slate-200">Supporting file: {requirementFile ? "Attached" : "Optional"}</div>
+                  <div className="rounded-2xl border border-[var(--surface-border)] bg-white px-4 py-3 text-sm text-[var(--foreground)]">Project: {selectedProject?.name || "No project selected"}</div>
+                  <div className="rounded-2xl border border-[var(--surface-border)] bg-white px-4 py-3 text-sm text-[var(--foreground)]">Requirement text: {requirementText.trim() ? "Ready" : "Missing"}</div>
+                  <div className="rounded-2xl border border-[var(--surface-border)] bg-white px-4 py-3 text-sm text-[var(--foreground)]">Supporting file: {requirementFile ? "Attached" : "Optional"}</div>
                 </div>
               </div>
-              <div className="rounded-[28px] border border-white/8 bg-white/[0.03] p-5">
-                <p className="text-sm font-medium text-white">Actions</p>
+              <div className="rounded-[28px] border border-[var(--surface-border)] bg-[var(--surface-muted)] p-5">
+                <p className="text-sm font-medium text-[var(--foreground)]">Actions</p>
                 <div className="mt-4 flex flex-wrap gap-3">
                   <Button onClick={() => runAction(() => sendMultipart("/ai/test-cases", { content: requirementText, projectId: selectedProjectId }, requirementFile), "Premium test case pack generated successfully.")} disabled={loading || (!requirementText.trim() && !requirementFile)}>{loading ? "Generating..." : "Generate premium test cases"}</Button>
-                  {exportedTestCases.length ? <Button variant="secondary" onClick={() => exportSpreadsheet(exportedTestCases, "qa-copilot-test-cases", "csv")}>Export CSV</Button> : null}
-                  {result && typeof result === "object" ? <Button variant="secondary" onClick={() => exportQaPackWorkbook(result as Record<string, unknown>, "qa-copilot-enterprise-qa-pack")}>Export Excel</Button> : null}
-                  {result && typeof result === "object" ? <Button variant="secondary" onClick={() => exportQaPackWorkbook(result as Record<string, unknown>, "qa-copilot-enterprise-qa-pack")}>Export QA Pack</Button> : null}
-                  {result && typeof result === "object" ? <Button variant="secondary" onClick={() => exportRoleWorkbook(result as Record<string, unknown>, "qa-copilot-qa-lead-pack", "qa-lead")}>Export QA Lead Pack</Button> : null}
-                  {result && typeof result === "object" ? <Button variant="secondary" onClick={() => exportRoleWorkbook(result as Record<string, unknown>, "qa-copilot-automation-pack", "automation")}>Export Automation Pack</Button> : null}
-                  {result && typeof result === "object" ? <Button variant="secondary" onClick={() => exportRoleWorkbook(result as Record<string, unknown>, "qa-copilot-business-uat-pack", "business-uat")}>Export Business UAT Pack</Button> : null}
+                  {exportedTestCases.length ? <Button variant="secondary" onClick={() => exportSpreadsheet(exportedTestCases, currentWorkbookBaseName, "xlsx")}>Export QA Test Cases</Button> : null}
+                  {exportedTestCases.length ? <Button variant="secondary" onClick={() => exportSpreadsheet(exportedTestCases, currentWorkbookBaseName, "csv")}>Export CSV</Button> : null}
+                  {result && typeof result === "object" ? <Button variant="secondary" onClick={() => exportQaPackWorkbook(result as Record<string, unknown>, currentWorkbookBaseName)}>Export Excel</Button> : null}
+                  {result && typeof result === "object" ? <Button variant="secondary" onClick={() => exportQaPackWorkbook(result as Record<string, unknown>, currentWorkbookBaseName)}>Export QA Pack</Button> : null}
+                  {result && typeof result === "object" ? <Button variant="secondary" onClick={() => exportRoleWorkbook(result as Record<string, unknown>, buildProjectQaFilename(selectedProject?.name, "QA_Lead_Pack"), "qa-lead")}>Export QA Lead Pack</Button> : null}
+                  {result && typeof result === "object" ? <Button variant="secondary" onClick={() => exportRoleWorkbook(result as Record<string, unknown>, buildProjectQaFilename(selectedProject?.name, "Automation_Pack"), "automation")}>Export Automation Pack</Button> : null}
+                  {result && typeof result === "object" ? <Button variant="secondary" onClick={() => exportRoleWorkbook(result as Record<string, unknown>, buildProjectQaFilename(selectedProject?.name, "Business_UAT_Pack"), "business-uat")}>Export Business UAT Pack</Button> : null}
                   {result ? <Button variant="secondary" onClick={() => exportJsonFile(result, "qa-copilot-test-cases.json")}>Export JSON</Button> : null}
+                </div>
+              </div>
+            </div>
+          </div>
+        </Card>
+      );
+    }
+
+    if (section === "execution") {
+      return (
+        <Card className="space-y-5">
+          <div className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+            <div className="space-y-4">
+              <div className="rounded-[28px] border border-[var(--surface-border)] bg-[var(--surface-muted)] p-4">
+                <p className="text-sm font-medium text-[var(--foreground)]">Execution target</p>
+                <Input
+                  className="mt-4"
+                  value={executionTargetUrl}
+                  onChange={(event) => setExecutionTargetUrl(event.target.value)}
+                  placeholder="http://localhost:3000"
+                />
+                <p className="mt-3 text-sm text-[var(--muted-foreground)]">
+                  This first version executes website-focused cases by navigating, clicking obvious controls, and verifying URLs or visible text.
+                </p>
+              </div>
+              <div className="rounded-[28px] border border-[var(--surface-border)] bg-[var(--surface-muted)] p-4">
+                <p className="text-sm font-medium text-[var(--foreground)]">Test case source</p>
+                <Input
+                  className="mt-4"
+                  type="file"
+                  accept=".csv,.xlsx,.xls,.json,.txt"
+                  onChange={(event) => setExecutionFile(event.target.files?.[0] || null)}
+                />
+                {executionFile ? <p className="mt-3 text-sm text-teal-700">Attached: {executionFile.name}</p> : null}
+                <Textarea
+                  className="mt-4 min-h-52"
+                  value={executionText}
+                  onChange={(event) => setExecutionText(event.target.value)}
+                  placeholder="Paste generated test cases in CSV, JSON, or structured text with steps and expected results."
+                />
+              </div>
+            </div>
+            <div className="space-y-4">
+              <div className="rounded-[28px] border border-[var(--surface-border)] bg-[var(--surface-muted)] p-5">
+                <p className="text-xs uppercase tracking-[0.18em] text-teal-600">Execution readiness</p>
+                <div className="mt-4 space-y-3">
+                  <div className="rounded-2xl border border-[var(--surface-border)] bg-white px-4 py-3 text-sm text-[var(--foreground)]">Project: {selectedProject?.name || "No project selected"}</div>
+                  <div className="rounded-2xl border border-[var(--surface-border)] bg-white px-4 py-3 text-sm text-[var(--foreground)]">Target URL: {executionTargetUrl.trim() ? "Ready" : "Missing"}</div>
+                  <div className="rounded-2xl border border-[var(--surface-border)] bg-white px-4 py-3 text-sm text-[var(--foreground)]">Case source: {executionText.trim() || executionFile ? "Ready" : "Missing"}</div>
+                </div>
+              </div>
+              <div className="rounded-[28px] border border-[var(--surface-border)] bg-[var(--surface-muted)] p-5">
+                <p className="text-sm font-medium text-[var(--foreground)]">Actions</p>
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <Button
+                    onClick={() =>
+                      runAction(
+                        () =>
+                          sendMultipart(
+                            "/ai/execute-test-cases",
+                            { content: executionText, baseUrl: executionTargetUrl, projectId: selectedProjectId },
+                            executionFile,
+                          ),
+                        "Website test execution completed.",
+                      )
+                    }
+                    disabled={loading || !executionTargetUrl.trim() || (!executionText.trim() && !executionFile)}
+                  >
+                    {loading ? "Executing..." : "Execute test cases"}
+                  </Button>
+                  {result ? <Button variant="secondary" onClick={() => exportJsonFile(result, "qa-copilot-executed-run.json")}>Export JSON</Button> : null}
                 </div>
               </div>
             </div>
@@ -2217,7 +3004,7 @@ export function UserConsole() {
     if (section === "automation") {
       return (
         <Card className="space-y-4">
-          <select value={automationFramework} onChange={(event) => setAutomationFramework(event.target.value)} className="rounded-2xl border border-white/12 bg-slate-950/60 px-4 py-3 text-sm text-white">
+          <select value={automationFramework} onChange={(event) => setAutomationFramework(event.target.value)} className="rounded-2xl border border-[var(--surface-border)] bg-white px-4 py-3 text-sm text-[var(--foreground)]">
             <option value="selenium">Selenium (Python)</option>
             <option value="playwright">Playwright</option>
             <option value="cypress">Cypress</option>
@@ -2231,8 +3018,37 @@ export function UserConsole() {
     if (section === "bug") {
       return (
         <Card className="space-y-4">
-          <Textarea value={bugInput} onChange={(event) => setBugInput(event.target.value)} placeholder="Paste logs, stack traces, reproduction clues, or screenshot context." />
-          <Button onClick={() => runAction(() => apiRequest("/ai/bug-analyzer", { method: "POST", body: JSON.stringify({ content: bugInput, projectId: selectedProjectId }) }), "Bug analysis is ready.")} disabled={loading || !bugInput.trim()}>Analyze bug</Button>
+          <Input
+            type="file"
+            accept=".png,.jpg,.jpeg,.webp,.gif,.mp4,.mov,.webm,.avi,.mkv,.txt,.log,.json"
+            onChange={(event) => setBugFile(event.target.files?.[0] || null)}
+          />
+          {bugFile ? (
+            <p className="text-sm text-[var(--muted-foreground)]">
+              Attached evidence: <span className="font-medium text-[var(--foreground)]">{bugFile.name}</span>
+            </p>
+          ) : null}
+          <Textarea
+            value={bugInput}
+            onChange={(event) => setBugInput(event.target.value)}
+            placeholder="Describe what is happening in the screenshot or video, add reproduction steps, expected behavior, actual behavior, logs, or stack traces."
+          />
+          <Button
+            onClick={() =>
+              runAction(
+                () =>
+                  sendMultipart(
+                    "/ai/bug-analyzer",
+                    { content: bugInput, projectId: selectedProjectId },
+                    bugFile,
+                  ),
+                "Bug analysis is ready.",
+              )
+            }
+            disabled={loading || (!bugInput.trim() && !bugFile)}
+          >
+            Analyze bug
+          </Button>
         </Card>
       );
     }
@@ -2272,8 +3088,91 @@ export function UserConsole() {
     if (section === "release-risk") {
       return (
         <Card className="space-y-4">
-          <Textarea value={releaseRiskText} onChange={(event) => setReleaseRiskText(event.target.value)} placeholder="Paste release notes, test status, and bug counts." />
-          <Button onClick={() => runAction(() => apiRequest("/ai/release-risk", { method: "POST", body: JSON.stringify({ content: releaseRiskText, projectId: selectedProjectId }) }), "Release risk assessment generated successfully.")} disabled={loading || !releaseRiskText.trim()}>Analyze release risk</Button>
+          <div className="grid gap-4 xl:grid-cols-2">
+            <Input value={releaseName} onChange={(event) => setReleaseName(event.target.value)} placeholder="Release name, for example Checkout v2 rollout" />
+            <Input value={releaseEnvironment} onChange={(event) => setReleaseEnvironment(event.target.value)} placeholder="Environment, for example Staging" />
+          </div>
+          <Input value={releaseScope} onChange={(event) => setReleaseScope(event.target.value)} placeholder="Scope, for example Cart, checkout, payment, order confirmation" />
+          <Input
+            value={releaseRiskUrl}
+            onChange={(event) => setReleaseRiskUrl(event.target.value)}
+            placeholder="Staging URL, for example https://staging.example.com"
+          />
+          <div className="grid gap-4 md:grid-cols-3">
+            <Input value={releasePassed} onChange={(event) => setReleasePassed(event.target.value)} placeholder="Passed count" />
+            <Input value={releaseFailed} onChange={(event) => setReleaseFailed(event.target.value)} placeholder="Failed count" />
+            <Input value={releaseBlocked} onChange={(event) => setReleaseBlocked(event.target.value)} placeholder="Blocked count" />
+          </div>
+          <Input
+            type="file"
+            accept=".xlsx,.xls,.csv,.json,.txt,.pdf,.docx"
+            onChange={(event) => setReleaseRiskFile(event.target.files?.[0] || null)}
+          />
+          {releaseRiskFile ? (
+            <p className="text-sm text-[var(--muted-foreground)]">
+              Attached execution report: <span className="font-medium text-[var(--foreground)]">{releaseRiskFile.name}</span>
+            </p>
+          ) : null}
+          <Textarea
+            value={releaseCriticalDefects}
+            onChange={(event) => setReleaseCriticalDefects(event.target.value)}
+            placeholder="Critical defects, one per line. Example: Payment fails for Visa cards on mobile Safari"
+            className="min-h-28"
+          />
+          <Textarea
+            value={releaseBlockedAreas}
+            onChange={(event) => setReleaseBlockedAreas(event.target.value)}
+            placeholder="Blocked areas or dependencies, one per line. Example: Refund flow validation blocked due to missing access"
+            className="min-h-24"
+          />
+          <Textarea
+            value={releaseCoverageGaps}
+            onChange={(event) => setReleaseCoverageGaps(event.target.value)}
+            placeholder="Coverage gaps, one per line. Example: Cross-browser validation incomplete for Firefox"
+            className="min-h-24"
+          />
+          <Textarea
+            value={releaseBusinessRisk}
+            onChange={(event) => setReleaseBusinessRisk(event.target.value)}
+            placeholder="Business risk, one per line. Example: Payment failure can impact revenue"
+            className="min-h-24"
+          />
+          <Input value={releaseTarget} onChange={(event) => setReleaseTarget(event.target.value)} placeholder="Release target, for example Tomorrow 8 PM IST" />
+          <Textarea
+            value={releaseRiskText}
+            onChange={(event) => setReleaseRiskText(event.target.value)}
+            placeholder="Additional release notes, stakeholder comments, mitigation notes, or anything else the model should consider."
+            className="min-h-28"
+          />
+          <div className="rounded-[24px] border border-dashed border-[var(--surface-border)] bg-[var(--surface-muted)] p-4">
+            <p className="text-xs uppercase tracking-[0.18em] text-[var(--accent)]">Composed QA brief</p>
+            <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-[var(--muted-foreground)]">
+              {buildReleaseRiskInput() || "Fill the release fields above to auto-build a structured release-risk brief."}
+            </p>
+          </div>
+          <Button
+            onClick={() =>
+              runAction(
+                () =>
+                  sendMultipart(
+                    "/ai/release-risk",
+                    {
+                      content: buildReleaseRiskInput(),
+                      stagingUrl: releaseRiskUrl,
+                      projectId: selectedProjectId,
+                    },
+                    releaseRiskFile,
+                  ),
+                "Release risk assessment generated successfully.",
+              )
+            }
+            disabled={
+              loading ||
+              (!buildReleaseRiskInput().trim() && !releaseRiskFile && !releaseRiskUrl.trim())
+            }
+          >
+            Analyze release risk
+          </Button>
         </Card>
       );
     }
@@ -2282,7 +3181,7 @@ export function UserConsole() {
       return (
         <Card className="space-y-4">
           <Input value={publishedUrl} onChange={(event) => setPublishedUrl(event.target.value)} placeholder="Published URL to validate" />
-          <select value={referenceType} onChange={(event) => setReferenceType(event.target.value)} className="rounded-2xl border border-white/12 bg-slate-950/60 px-4 py-3 text-sm text-white">
+          <select value={referenceType} onChange={(event) => setReferenceType(event.target.value)} className="rounded-2xl border border-[var(--surface-border)] bg-white px-4 py-3 text-sm text-[var(--foreground)]">
             <option value="pdf">PDF or document</option>
             <option value="word">Word or DOCX</option>
             <option value="image">Image or screenshot notes</option>
@@ -2325,7 +3224,23 @@ export function UserConsole() {
     return null;
   }
 
-  if (!overview) return <p className="text-sm text-slate-300">Loading workspace...</p>;
+  if (overviewError) {
+    return (
+      <Card className="p-6">
+        <p className="text-[11px] uppercase tracking-[0.22em] text-[var(--muted-foreground)]">Workspace status</p>
+        <h2 className="mt-3 text-2xl font-semibold tracking-tight text-[var(--foreground)]">We could not load your dashboard</h2>
+        <p className="mt-3 max-w-2xl text-sm leading-7 text-[var(--muted-foreground)]">
+          {overviewError}
+        </p>
+        <div className="mt-5 flex flex-wrap gap-3">
+          <Button onClick={() => void loadOverview()}>Try again</Button>
+          <Button variant="secondary" onClick={() => router.replace("/login")}>Go to login</Button>
+        </div>
+      </Card>
+    );
+  }
+
+  if (!overview) return <p className="text-sm text-[var(--muted-foreground)]">Loading workspace...</p>;
 
   const overviewData = overview;
 
@@ -2370,9 +3285,12 @@ export function UserConsole() {
               <Card className="overflow-hidden p-8">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                   <div>
-                    <p className="text-[11px] uppercase tracking-[0.22em] text-[var(--muted-foreground)]">{overviewData.user.subscription?.plan.name || "Starter"} plan</p>
+                    <p className="text-[11px] uppercase tracking-[0.22em] text-[var(--accent)]">{currentSection.label} workspace</p>
                     <h1 className="mt-3 text-3xl font-semibold tracking-tight text-[var(--foreground)]">{currentSection.title}</h1>
                     <p className="mt-3 max-w-2xl text-sm leading-7 text-[var(--muted-foreground)]">{currentSection.desc}</p>
+                    <p className="mt-3 max-w-2xl text-sm font-medium text-[var(--foreground)]/80">
+                      Designed to turn scattered QA evidence into an executive-ready decision layer with sharper risk visibility, stronger release discipline, and faster stakeholder alignment.
+                    </p>
                   </div>
                   {loading ? <div className="inline-flex items-center gap-2 rounded-full border border-[var(--surface-border)] bg-[var(--surface-muted)] px-4 py-2 text-sm text-[var(--foreground)]"><LoaderCircle className="h-4 w-4 animate-spin" />Generating</div> : null}
                 </div>
@@ -2386,7 +3304,7 @@ export function UserConsole() {
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div><p className="text-[11px] uppercase tracking-[0.22em] text-[var(--muted-foreground)]">Generated QA assets</p><h3 className="mt-2 text-2xl font-semibold text-[var(--foreground)]">Structured output</h3></div>
                 </div>
-                {message ? <div className={`mt-5 rounded-[18px] border px-4 py-4 text-sm ${message.toLowerCase().includes("successfully") ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-100" : "border-rose-300/20 bg-rose-400/10 text-rose-100"}`}>{message}</div> : null}
+                {message ? <div className={`mt-5 rounded-[18px] border px-4 py-4 text-sm ${message.toLowerCase().includes("successfully") ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-rose-200 bg-rose-50 text-rose-700"}`}>{message}</div> : null}
                 <div className="mt-6">
                   <FriendlyResult
                     result={result}

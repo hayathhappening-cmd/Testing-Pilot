@@ -59,6 +59,7 @@ async function main() {
   });
 
   const adminPasswordHash = await bcrypt.hash("Admin@123", 10);
+  const runnerPasswordHash = await bcrypt.hash("Runner@123", 10);
 
   const admin = await prisma.user.upsert({
     where: { email: "admin@qacopilot.ai" },
@@ -89,6 +90,55 @@ async function main() {
       userId: admin.id,
       planId: starterPlan.id,
       status: "active",
+    },
+  });
+
+  const runner = await prisma.user.upsert({
+    where: { email: "runner@qacopilot.ai" },
+    update: {
+      name: "QA Copilot Runner",
+      passwordHash: runnerPasswordHash,
+      role: Role.USER,
+      approvalStatus: ApprovalStatus.APPROVED,
+      creditsBalance: starterPlan.creditsPerMonth,
+      company: "QA Copilot",
+    },
+    create: {
+      name: "QA Copilot Runner",
+      email: "runner@qacopilot.ai",
+      passwordHash: runnerPasswordHash,
+      role: Role.USER,
+      approvalStatus: ApprovalStatus.APPROVED,
+      creditsBalance: starterPlan.creditsPerMonth,
+      company: "QA Copilot",
+    },
+  });
+
+  await prisma.subscription.upsert({
+    where: { userId: runner.id },
+    update: {
+      planId: starterPlan.id,
+      status: "active",
+    },
+    create: {
+      userId: runner.id,
+      planId: starterPlan.id,
+      status: "active",
+    },
+  });
+
+  await prisma.project.upsert({
+    where: { id: "runner-demo-project" },
+    update: {
+      ownerId: runner.id,
+      name: "Runner Workspace",
+      description: "Seeded user workspace for automated execution flows.",
+    },
+    create: {
+      id: "runner-demo-project",
+      ownerId: runner.id,
+      name: "Runner Workspace",
+      description: "Seeded user workspace for automated execution flows.",
     },
   });
 
@@ -135,4 +185,3 @@ main()
     await prisma.$disconnect();
     process.exit(1);
   });
-

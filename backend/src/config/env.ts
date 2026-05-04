@@ -1,14 +1,18 @@
 import "dotenv/config";
 
 function parseCorsOrigins(input?: string) {
+  const defaults = ["http://localhost:3000", "http://127.0.0.1:3000"];
+
   if (!input?.trim()) {
-    return ["http://localhost:3000"];
+    return defaults;
   }
 
-  return input
+  const configuredOrigins = input
     .split(",")
     .map((origin) => origin.trim())
     .filter(Boolean);
+
+  return Array.from(new Set([...configuredOrigins, ...defaults]));
 }
 
 export const env = {
